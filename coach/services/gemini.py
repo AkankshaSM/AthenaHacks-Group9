@@ -7,6 +7,149 @@ from typing import Any
 import requests
 
 
+QUESTION_PROMPT = """
+You are an expert speech coach.
+
+Given the speaking context and draft script, decide whether context is sufficient.
+If sufficient, return an empty question list.
+If insufficient, return highly relevant clarifying questions.
+
+Rules:
+- At most 7 questions.
+- Questions must target audience, tone, duration, intent, stakes, venue, and desired outcome.
+- Avoid generic or repetitive questions.
+- Return strict JSON only.
+
+JSON schema:
+{{
+  "context_sufficient": boolean,
+  "questions": ["string"]
+}}
+
+Context:
+{context}
+
+Draft:
+{draft}
+""".strip()
+
+
+REFINE_PROMPT = """
+You are refining speech content for delivery quality.
+
+Use:
+- Context
+- Clarifying question answers
+- Current script
+- Additional instruction from user
+- Prior refinements history
+
+Goals:
+- Preserve intent
+- Increase clarity and flow
+- Optimize rhetorical pacing
+- Fit requested tone and audience
+- Keep language natural and speakable
+
+Return strict JSON only.
+
+JSON schema:
+{{
+  "refined_script": "string"
+}}
+
+Context:
+{context}
+
+Answers:
+{answers}
+
+Additional instruction:
+{instruction}
+
+Current script:
+{script}
+
+History snippets:
+{history}
+""".strip()
+
+
+ANALYSIS_PROMPT = """
+You are analyzing speaking delivery using the full speech metadata JSON and the original script.
+Do NOT ignore any provided JSON fields. Consider all of them.
+
+Analyze objectively:
+- Speaking speed
+- Pauses
+- Clarity
+- Emphasis
+- Emotional tone
+- Fluency
+- Alignment with intended context
+
+Then produce three outputs:
+
+1) ANNOTATED SCRIPT
+Rewrite the script with ElevenLabs v3 delivery tags at meaningful moments:
+   [short pause], [long pause], [whispers], [shouting], [dramatic tone],
+   [conversational tone], [quietly], [loudly], [curious], [mischievously]
+Only tag moments where it genuinely elevates delivery for this context. Do not over-tag.
+
+2) ACTIONABLE FEEDBACK LIST
+Rules for feedback only:
+- Start with what worked well — be specific and sincere.
+- Only flag a problem if it meaningfully affects the impact of this speech for this context and audience.
+- Do NOT mention pauses as an issue unless they genuinely hurt comprehension or delivery for this use case.
+  Pauses are often natural — only raise them if there is a real, clear problem.
+- Every item must be tied to the stated context and purpose, not generic coaching rules.
+- Label each item by importance:
+    [Critical] — must fix before next delivery, significantly impacts effectiveness
+    [Suggested] — worthwhile improvement, moderate impact
+    [Minor] — small polish, low priority
+    [Positive] — something done well
+- Skip low-value observations. Quality over quantity. 3–7 items maximum.
+
+3) VOICE RECOMMENDATION
+Best matching ElevenLabs voice for this context, tone, and audience.
+
+Return strict JSON only.
+
+JSON schema:
+{{
+  "annotated_script": "string",
+  "feedback": ["string"],
+  "voice_recommendation": {{
+    "voice_id": "string",
+    "voice_name": "string",
+    "rationale": "string"
+  }}
+}}
+    "speed_summary": "string",
+    "pause_summary": "string",
+    "clarity_summary": "string",
+    "emotional_summary": "string",
+    "fluency_summary": "string",
+    "context_alignment": "string"
+  }}
+}}
+
+Each feedback string must start with one of: [Critical], [Suggested], [Minor], or [Positive].
+Example: "[Positive] Your opening hook was confident and immediately relevant to the audience."
+Example: "[Critical] The closing felt rushed — for a persuasive pitch, the call to action needs more weight."
+Example: "[Minor] Slight over-use of filler words in the middle section; not distracting but worth cleaning up."
+
+Context:
+{context}
+
+Original script:
+{script}
+
+Speech metadata JSON:
+{metadata}
+""".strip()
+
+
 class GeminiServiceError(Exception):
     pass
 
@@ -141,30 +284,7 @@ Malformed JSON:
         return self._extract_text(response.json())
 
     def generate_questions(self, context: str, script: str) -> list[str]:
-        prompt = f"""
-You are a speech-coaching assistant.
-Task: validate whether context is sufficient to refine a speech script.
-
-Rules:
-- If context is enough, return empty questions.
-- If context is insufficient, generate between 1 and 7 highly relevant clarifying questions.
-- Questions must focus on audience, tone, duration, goal, delivery style, and formality when missing.
-- Do not exceed 7 questions.
-- Keep questions concise and specific.
-
-Return ONLY valid JSON in this shape:
-{{
-  "needs_clarification": true/false,
-  "questions": ["..."]
-}}
-
-Context:
-{context}
-
-Initial Script:
-{script}
-""".strip()
-
+        prompt = QUESTION_PROMPT.format(context=context, draft=script)
         result = self._call_json(prompt, max_output_tokens=8192).payload
         questions = result.get("questions", [])
         if not isinstance(questions, list):
@@ -181,38 +301,13 @@ Initial Script:
         previous_versions: list[str],
         instructions: str,
     ) -> str:
-        prompt = f"""
-You are an expert speech writing and coaching assistant.
-Task: produce an improved script optimized for clarity, engagement, and delivery.
-
-Constraints:
-- Preserve user intent and factual meaning.
-- Improve structure and flow.
-- Keep language audience-appropriate based on context and Q&A.
-- If instructions are provided, prioritize them.
-- Return plain script text in one field.
-
-Return ONLY valid JSON in this shape:
-{{
-  "refined_script": "..."
-}}
-
-Context:
-{context}
-
-Current Script:
-{script}
-
-Clarifying Answers (JSON):
-{json.dumps(answers, ensure_ascii=False)}
-
-Previous Versions (JSON array, newest first):
-{json.dumps(previous_versions, ensure_ascii=False)}
-
-Optional Instructions:
-{instructions or ""}
-""".strip()
-
+        prompt = REFINE_PROMPT.format(
+            context=context,
+            script=script,
+            answers=json.dumps(answers, ensure_ascii=False),
+            instruction=instructions or "",
+            history=json.dumps(previous_versions, ensure_ascii=False),
+        )
         result = self._call_json(prompt).payload
         refined_script = str(result.get("refined_script", "")).strip()
         if not refined_script:
@@ -226,119 +321,39 @@ Optional Instructions:
         metadata_json: dict[str, Any],
         context: str,
     ) -> dict[str, Any]:
-        prompt = f"""
-You are a professional speech and communication coach with expertise in delivery, pacing, and audience engagement.
-You will analyze a recorded speech against its intended script and the delivery metadata JSON below.
-Do NOT ignore any field in the metadata JSON — every metric must inform your feedback.
-
-Your output must have three parts:
-
----
-PART 1 — annotated_script
-Rewrite the script with ElevenLabs v3 expressive delivery tags inserted at precise locations.
-Allowed tags (use only these, verbatim):
-  [short pause]  [long pause]  [whispers]  [shouting]  [dramatic tone]
-  [conversational tone]  [quietly]  [loudly]  [curious]  [mischievously]
-Rules:
-- Insert tags ONLY where they meaningfully improve delivery.
-- Base tag placement on the actual pause/speed/tone data in the metadata.
-- Do not over-annotate — quality over quantity.
-
-PART 2 — feedback_sections
-Provide structured coaching feedback in exactly these 6 categories.
-Each category MUST have 2–4 specific, evidence-based bullet points tied to the metadata:
-
-1. Pacing & Speed
-   - Comment on words-per-minute vs ideal range for context.
-   - Identify moments that were too fast or too slow.
-
-2. Pauses & Rhythm
-   - Evaluate use of short pauses (under 0.8s) and long pauses (over 0.8s).
-   - Recommend specific moments to add or remove pauses.
-
-3. Clarity & Fluency
-   - Assess overall clarity score.
-   - Highlight words or sections needing stronger articulation.
-
-4. Emotional Tone & Engagement
-   - Evaluate whether emotional tone matched the context and audience.
-   - Recommend where to intensify or soften energy.
-
-5. Alignment with Context & Goal
-   - Assess how well the delivery matched the stated context and purpose.
-   - Note any structural or emphasis mismatches.
-
-6. Priority Improvements
-   - List the top 3 most impactful changes the speaker should make before their next delivery.
-
-PART 3 — voice_recommendation
-Recommend the best ElevenLabs voice for this context, tone, and audience.
-
----
-
-Return ONLY valid JSON. No markdown. No commentary outside JSON. Use this exact shape:
-{{
-  "annotated_script": "...",
-  "feedback_sections": [
-    {{"category": "Pacing & Speed", "items": ["...", "..."]}},
-    {{"category": "Pauses & Rhythm", "items": ["...", "..."]}},
-    {{"category": "Clarity & Fluency", "items": ["...", "..."]}},
-    {{"category": "Emotional Tone & Engagement", "items": ["...", "..."]}},
-    {{"category": "Alignment with Context & Goal", "items": ["...", "..."]}},
-    {{"category": "Priority Improvements", "items": ["...", "...", "..."]}}
-  ],
-  "feedback_summary": "One sentence overall assessment of the delivery.",
-  "voice_recommendation": {{
-    "voice_id": "",
-    "name": "recommended voice name",
-    "reason": "why this voice fits the context and tone"
-  }}
-}}
-
-Context / Purpose of Speech:
-{context}
-
-Final Script:
-{final_script}
-
-Full Delivery Metadata JSON:
-{json.dumps(metadata_json, ensure_ascii=False, indent=2)}
-""".strip()
-
+        prompt = ANALYSIS_PROMPT.format(
+            context=context,
+            script=final_script,
+            metadata=json.dumps(metadata_json, ensure_ascii=False, indent=2),
+        )
         result = self._call_json(prompt, max_output_tokens=8192).payload
 
         annotated_script = str(result.get("annotated_script", "")).strip()
-        feedback_sections = result.get("feedback_sections", [])
-        feedback_summary = str(result.get("feedback_summary", "")).strip()
-        voice = result.get("voice_recommendation", {})
-
         if not annotated_script:
             raise GeminiServiceError("Gemini returned empty annotated script")
 
-        if not isinstance(feedback_sections, list):
-            feedback_sections = []
+        feedback = result.get("feedback", [])
+        if not isinstance(feedback, list):
+            feedback = []
+        feedback = [str(i).strip() for i in feedback if str(i).strip()]
 
-        # Normalise each section
-        cleaned_sections = []
-        for section in feedback_sections:
-            if not isinstance(section, dict):
-                continue
-            items = section.get("items", [])
-            cleaned_sections.append({
-                "category": str(section.get("category", "General")).strip(),
-                "items": [str(i).strip() for i in items if str(i).strip()],
-            })
-
+        voice = result.get("voice_recommendation", {})
         if not isinstance(voice, dict):
-            voice = {"name": "General Purpose", "reason": "Fallback recommendation"}
+            voice = {}
+
+        diagnostics = result.get("diagnostics", {})
+        if not isinstance(diagnostics, dict):
+            diagnostics = {}
 
         return {
             "annotated_script": annotated_script,
-            "feedback_sections": cleaned_sections,
-            "feedback_summary": feedback_summary,
+            "feedback": feedback,
             "voice_recommendation": {
                 "voice_id": str(voice.get("voice_id", "")).strip(),
-                "name": str(voice.get("name", "General Purpose")).strip(),
-                "reason": str(voice.get("reason", "Fit based on context and tone.")).strip(),
+                "voice_name": str(voice.get("voice_name", "General Purpose")).strip(),
+                "rationale": str(voice.get("rationale", "Fit based on context and tone.")).strip(),
             },
+            "diagnostics": diagnostics,
         }
+
+

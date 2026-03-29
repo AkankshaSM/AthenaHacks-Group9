@@ -85,13 +85,11 @@ class ElevenLabsClient:
                 continue
             start = float(item.get("start", 0.0) or 0.0)
             end = float(item.get("end", start) or start)
-            confidence = item.get("confidence")
             normalized_words.append(
                 {
                     "text": text,
                     "start": start,
                     "end": end,
-                    "confidence": float(confidence) if isinstance(confidence, (int, float)) else None,
                 }
             )
 
@@ -121,9 +119,6 @@ class ElevenLabsClient:
             else:
                 long_pauses.append(pause_entry)
 
-        confidence_values = [w["confidence"] for w in normalized_words if isinstance(w.get("confidence"), float)]
-        clarity_score = round((sum(confidence_values) / len(confidence_values)) * 100.0, 2) if confidence_values else None
-
         return {
             "provider": "elevenlabs",
             "analysis_source": "speech_to_text_fallback",
@@ -140,19 +135,6 @@ class ElevenLabsClient:
                 "short_pauses": short_pauses,
                 "long_pauses": long_pauses,
             },
-            "clarity": {
-                "confidence_avg_percent": clarity_score,
-                "note": "Estimated from STT confidence.",
-            },
-            "pitch_variation": {
-                "value": None,
-                "note": "Pitch metrics are not returned by ElevenLabs STT endpoint.",
-            },
-            "emotional_tone": {
-                "value": "unknown",
-                "note": "Emotional tone requires secondary model inference.",
-            },
-            "raw_json": stt_json,
         }
 
     def _analyze_with_speech_to_text(self, *, file_bytes: bytes, filename: str, content_type: str | None) -> dict[str, Any]:

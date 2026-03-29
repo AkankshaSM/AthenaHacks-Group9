@@ -186,25 +186,22 @@ def analysis_page(request: HttpRequest) -> HttpResponse:
     recording = session.recordings.order_by("-created_at").first()
 
     voice_data: dict[str, Any] = {}
-    feedback_sections: list[dict[str, Any]] = []
-    feedback_summary: str = ""
+    feedback_list: list[str] = []
 
     if analysis:
         try:
             voice_data = json.loads(analysis.voice_recommendation)
         except json.JSONDecodeError:
-            voice_data = {"name": analysis.voice_recommendation, "reason": ""}
+            voice_data = {"voice_name": analysis.voice_recommendation, "rationale": ""}
 
         try:
-            feedback_payload = json.loads(analysis.feedback)
-            if isinstance(feedback_payload, dict):
-                feedback_sections = feedback_payload.get("sections", [])
-                feedback_summary = str(feedback_payload.get("summary", "")).strip()
+            parsed_feedback = json.loads(analysis.feedback)
+            if isinstance(parsed_feedback, list):
+                feedback_list = [str(i) for i in parsed_feedback if str(i).strip()]
             else:
-                # Legacy plain-text fallback
-                feedback_sections = [{"category": "Feedback", "items": analysis.feedback.splitlines()}]
+                feedback_list = (analysis.feedback or "").splitlines()
         except (json.JSONDecodeError, AttributeError):
-            feedback_sections = [{"category": "Feedback", "items": (analysis.feedback or "").splitlines()}]
+            feedback_list = (analysis.feedback or "").splitlines()
 
     return render(
         request,
@@ -214,8 +211,7 @@ def analysis_page(request: HttpRequest) -> HttpResponse:
             "analysis": analysis,
             "recording": recording,
             "voice_data": voice_data,
-            "feedback_sections": feedback_sections,
-            "feedback_summary": feedback_summary,
+            "feedback_list": feedback_list,
         },
     )
 
@@ -347,10 +343,7 @@ def analyze_speech_api(request: HttpRequest) -> JsonResponse:
     except GeminiServiceError as exc:
         return JsonResponse({"error": str(exc)}, status=502)
 
-    feedback_payload = {
-        "summary": result.get("feedback_summary", ""),
-        "sections": result.get("feedback_sections", []),
-    }
+    feedback_payload = result.get("feedback", [])
     voice_text = json.dumps(result["voice_recommendation"], ensure_ascii=False)
 
     Analysis.objects.create(

@@ -5,33 +5,33 @@
     <h2>Speech Analysis Results</h2>
 
     {% if analysis %}
-        <h3>Annotated Script</h3>
-        <pre class="script-preview" id="annotated_script">{{ analysis.annotated_script }}</pre>
-
         <h3>Coaching Feedback</h3>
-        {% if feedback_summary %}
-            <p class="feedback-summary">{{ feedback_summary }}</p>
-        {% endif %}
-        {% if feedback_sections %}
-            <div class="feedback-grid">
-                {% for section in feedback_sections %}
-                    <div class="feedback-card">
-                        <h4 class="feedback-category">{{ section.category }}</h4>
-                        <ul class="feedback-items">
-                            {% for item in section.items %}
-                                <li>{{ item }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
+        {% if feedback_list %}
+            <ul class="feedback-items">
+                {% for item in feedback_list %}
+                    {% if item|slice:":10" == "[Critical]" %}
+                        <li class="feedback-critical">{{ item }}</li>
+                    {% elif item|slice:":11" == "[Suggested]" %}
+                        <li class="feedback-suggested">{{ item }}</li>
+                    {% elif item|slice:":7" == "[Minor]" %}
+                        <li class="feedback-minor">{{ item }}</li>
+                    {% elif item|slice:":10" == "[Positive]" %}
+                        <li class="feedback-positive">{{ item }}</li>
+                    {% else %}
+                        <li>{{ item }}</li>
+                    {% endif %}
                 {% endfor %}
-            </div>
+            </ul>
         {% else %}
             <p class="mic-status">No feedback available yet.</p>
         {% endif %}
 
+        <h3>Suggested Annotated Script</h3>
+        <pre class="script-preview" id="annotated_script">{{ analysis.annotated_script }}</pre>
+
         <h3>Voice Recommendation</h3>
-        <p><strong>Name:</strong> {{ voice_data.name|default:"General Purpose" }}</p>
-        <p><strong>Reason:</strong> {{ voice_data.reason|default:"Context and tone fit." }}</p>
+        <p><strong>Name:</strong> {{ voice_data.voice_name|default:"General Purpose" }}</p>
+        <p><strong>Rationale:</strong> {{ voice_data.rationale|default:"Context and tone fit." }}</p>
 
         <div class="button-row">
             <button id="synthesize_btn">Generate Improved Audio</button>
@@ -57,7 +57,7 @@
 {% if analysis %}
 {{ analysis.annotated_script|json_script:"annotated-script-data" }}
 {{ voice_data.voice_id|default:""|json_script:"voice-id-data" }}
-{{ voice_data.name|default:""|json_script:"voice-name-data" }}
+{{ voice_data.voice_name|default:""|json_script:"voice-name-data" }}
 <script>
 function getCsrfToken() {
     const name = "csrftoken=";

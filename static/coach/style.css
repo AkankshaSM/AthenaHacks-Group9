@@ -233,7 +233,28 @@ button:disabled {
 }
 
 .feedback-items li {
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.feedback-critical {
+  border-left: 3px solid #e05252;
+  padding-left: 0.6rem;
+}
+
+.feedback-suggested {
+  border-left: 3px solid #e09a52;
+  padding-left: 0.6rem;
+}
+
+.feedback-minor {
+  border-left: 3px solid #a0a0a0;
+  padding-left: 0.6rem;
+}
+
+.feedback-positive {
+  border-left: 3px solid #52a852;
+  padding-left: 0.6rem;
 }
 
 .question-block {
