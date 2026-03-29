@@ -1,0 +1,2032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>USC Campus Explorer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz@1,9..144&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: white;
+      overflow-x: hidden;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      height: 100vh;
+      background: #07111f;
+      overflow: hidden;
+    }
+
+    /* ── Wave container pinned to hero bottom ── */
+    .waves-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 340px;
+      /* Top matches hero so nothing shows above wave 1;
+         bottom stays light blue to cover parallax gaps */
+      background: linear-gradient(to bottom, #07111f 25%, #dff1f9 100%);
+    }
+
+    .wave-layer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      will-change: transform;
+    }
+
+    .wave-layer svg {
+      position: absolute;
+      bottom: 0;
+      /* Push endpoints well past the first bezier control point (~89px)
+         so the visible slice is always the fully-formed middle of the curve */
+      left: -10%;
+      width: 120%;
+      height: 100%;
+    }
+
+    /* Gradient overlay: fades the lowest wave band from light-blue → white */
+    .waves-container::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 90px;
+      background: linear-gradient(to bottom, transparent, #ffffff);
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    /* Gentle horizontal undulation per layer */
+    @keyframes drift1 {
+      0%, 100% { transform: translateX(0px); }
+      50%       { transform: translateX(-28px); }
+    }
+    @keyframes drift2 {
+      0%, 100% { transform: translateX(0px); }
+      50%       { transform: translateX(22px); }
+    }
+    @keyframes drift3 {
+      0%, 100% { transform: translateX(0px); }
+      50%       { transform: translateX(-18px); }
+    }
+    @keyframes drift4 {
+      0%, 100% { transform: translateX(0px); }
+      50%       { transform: translateX(16px); }
+    }
+    @keyframes drift5 {
+      0%, 100% { transform: translateX(0px); }
+      50%       { transform: translateX(-12px); }
+    }
+    @keyframes drift6 {
+      0%, 100% { transform: translateX(0px); }
+      50%       { transform: translateX(10px); }
+    }
+
+    /* Single shared bob — large amplitude, same duration on every layer.
+       Staggered delay creates the cascading ripple: layer 1 rises first,
+       each subsequent layer follows 0.45 s later. */
+    @keyframes bob {
+      0%, 100% { transform: translateY(0px);   }
+      50%       { transform: translateY(-28px); }
+    }
+
+    /* Horizontal drift stays per-layer for organic feel */
+    .wave-layer:nth-child(1) { animation: drift1 9s ease-in-out infinite,        bob 3.6s ease-in-out infinite 0s;     }
+    .wave-layer:nth-child(2) { animation: drift2 8s ease-in-out infinite 0.8s,   bob 3.6s ease-in-out infinite 0.45s;  }
+    .wave-layer:nth-child(3) { animation: drift3 10s ease-in-out infinite 0.4s,  bob 3.6s ease-in-out infinite 0.9s;   }
+    .wave-layer:nth-child(4) { animation: drift4 7s ease-in-out infinite 1.2s,   bob 3.6s ease-in-out infinite 1.35s;  }
+    .wave-layer:nth-child(5) { animation: drift5 11s ease-in-out infinite 0.6s,  bob 3.6s ease-in-out infinite 1.8s;   }
+    .wave-layer:nth-child(6) { animation: drift6 8s ease-in-out infinite 1.5s,   bob 3.6s ease-in-out infinite 2.25s;  }
+
+    /* ── Logo ── */
+    .logo {
+      position: absolute;
+      top: 38%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo img {
+      width: 360px;
+      display: block;
+    }
+
+    /* ── Tagline ── */
+    .tagline {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 1.4rem;
+      color: rgba(255, 255, 255, 0.75);
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+    /* ── Glass button ── */
+    .glass-btn {
+      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      font-style: normal;
+      font-weight: 300;
+      font-size: 0.85rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50px;
+      padding: 13px 60px;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      white-space: nowrap;
+      transition: all 0.3s ease;
+    }
+
+    .glass-btn:hover {
+      background: rgba(130, 214, 245, 0.12);
+      border-color: rgba(130, 214, 245, 0.5);
+      color: #ffffff;
+      box-shadow:
+        0 0 24px rgba(130, 214, 245, 0.4),
+        0 0 60px rgba(130, 214, 245, 0.2),
+        inset 0 0 16px rgba(130, 214, 245, 0.08);
+    }
+
+    /* ── White section below ── */
+    .white-section {
+      min-height: 100vh;
+      background: white;
+      position: relative;
+    }
+
+    /* ── Steps sidebar ── */
+    .steps-sidebar {
+      position: absolute;
+      top: 60px;
+      left: 0;
+      width: 260px;
+      background: #EBF6FF;
+      border-radius: 0 20px 20px 0;
+      padding: 28px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: 4px 0 24px rgba(13, 31, 60, 0.06);
+      transform: translateX(-100%);
+      opacity: 0;
+      transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1),
+                  opacity 0.8s ease;
+    }
+
+    .steps-sidebar.visible {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    /* Stagger each step item fading in */
+    .step-item, .step-divider {
+      opacity: 0;
+      transform: translateX(-12px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .steps-sidebar.visible .step-item,
+    .steps-sidebar.visible .step-divider {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .steps-sidebar.visible .step-item:nth-child(1)  { transition-delay: 0.1s; }
+    .steps-sidebar.visible .step-item:nth-child(3)  { transition-delay: 0.18s; }
+    .steps-sidebar.visible .step-item:nth-child(5)  { transition-delay: 0.26s; }
+    .steps-sidebar.visible .step-item:nth-child(7)  { transition-delay: 0.34s; }
+    .steps-sidebar.visible .step-item:nth-child(9)  { transition-delay: 0.42s; }
+    .steps-sidebar.visible .step-item:nth-child(11) { transition-delay: 0.50s; }
+    .steps-sidebar.visible .step-item:nth-child(13) { transition-delay: 0.58s; }
+    .steps-sidebar.visible .step-item:nth-child(15) { transition-delay: 0.66s; }
+    .steps-sidebar.visible .step-divider            { transition-delay: 0.05s; }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: default;
+      transition: background 0.2s ease;
+    }
+
+    .step-item:hover {
+      background: rgba(13, 31, 60, 0.06);
+    }
+
+    .step-icon {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      color: #0d2a4a;
+    }
+
+    .step-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .step-num {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #82D6F5;
+    }
+
+    .step-label {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #0d2a4a;
+      line-height: 1.3;
+    }
+
+    .step-desc {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.7rem;
+      color: #4a6a8a;
+      line-height: 1.4;
+      margin-top: 1px;
+    }
+
+    .step-divider {
+      width: 1px;
+      height: 10px;
+      background: #c8e4f5;
+      margin: 0 0 0 29px;
+    }
+
+    /* ── Active step in sidebar ── */
+    .step-item.active {
+      background: rgba(255, 255, 255, 0.55);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(130, 214, 245, 0.45);
+      box-shadow: 0 4px 20px rgba(130, 214, 245, 0.25),
+                  inset 0 0 12px rgba(255, 255, 255, 0.4);
+      transform: translateX(8px) !important;
+      border-radius: 14px;
+      padding: 13px 14px;
+    }
+    .step-item.active .step-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0a1f3a;
+    }
+    .step-item.active .step-num {
+      font-size: 0.7rem;
+      color: #5bbfe0;
+    }
+    .step-item.active .step-icon {
+      width: 42px;
+      height: 42px;
+      color: #1a6fa0;
+    }
+
+    /* ── Shared step layout ── */
+    .context-step,
+    .content-step {
+      margin-left: 280px;
+      padding: 60px 100px 50px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: calc(100vh - 60px);
+    }
+
+    /* ── Context step ── */
+    .context-step {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.8s ease 0.4s, transform 0.8s ease 0.4s;
+    }
+    .context-step.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .context-step .step-eyebrow,
+    .context-step .step-heading,
+    .context-step .step-subtext {
+      text-align: center;
+    }
+    .context-step .field-label {
+      align-self: flex-start;
+    }
+    .context-step .chips-group {
+      justify-content: center;
+    }
+    .context-step .highlight-box {
+      width: 100%;
+    }
+
+    /* Spacer pushes button to the bottom in both steps */
+    .step-spacer { flex: 1; }
+
+    .continue-row {
+      width: 100%;
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 32px;
+    }
+
+    /* ── Step 2 — Content ── */
+    .content-step {
+      display: none;
+      margin-left: 280px;
+      padding: 80px 100px;
+      flex-direction: column;
+      align-items: center;
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    }
+
+    /* ── Step 3 — Enrich ── */
+    .enrich-step {
+      display: none;
+      margin-left: 280px;
+      padding: 60px 100px 50px;
+      flex-direction: column;
+      align-items: center;
+      height: calc(100vh - 60px);
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    }
+    .enrich-step.active  { display: flex; }
+    .enrich-step.visible { opacity: 1; transform: translateY(0); }
+    .enrich-step .step-eyebrow,
+    .enrich-step .step-heading,
+    .enrich-step .step-subtext { text-align: center; }
+
+    /* Questions list */
+    .questions-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 28px;
+      overflow-y: auto;
+      flex: 1;
+      padding-bottom: 8px;
+    }
+
+    .question-card {
+      width: 100%;
+      background: rgba(235, 246, 255, 0.5);
+      border: 1.5px solid rgba(130, 214, 245, 0.22);
+      border-radius: 18px;
+      padding: 22px 24px 18px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      opacity: 0;
+      transform: translateY(14px);
+      animation: cardIn 0.5s ease forwards;
+    }
+
+    .question-card:nth-child(1) { animation-delay: 0.05s; }
+    .question-card:nth-child(2) { animation-delay: 0.15s; }
+    .question-card:nth-child(3) { animation-delay: 0.25s; }
+    .question-card:nth-child(4) { animation-delay: 0.35s; }
+
+    @keyframes cardIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .question-card:focus-within {
+      border-color: rgba(130, 214, 245, 0.65);
+      box-shadow: 0 0 20px rgba(130, 214, 245, 0.2);
+    }
+
+    .question-label {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #82D6F5;
+      margin-bottom: 8px;
+    }
+
+    .question-text {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.96rem;
+      font-weight: 500;
+      color: #0a1f3a;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .question-input {
+      width: 100%;
+      background: rgba(255,255,255,0.6);
+      border: 1.5px solid rgba(130, 214, 245, 0.2);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      color: #1a3a5c;
+      outline: none;
+      resize: none;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+    .question-input::placeholder { color: #a0bdd0; }
+    .question-input:focus {
+      border-color: rgba(130, 214, 245, 0.6);
+      box-shadow: 0 0 14px rgba(130, 214, 245, 0.18);
+    }
+
+    .question-input-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    .question-input-wrap .audio-btn {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      width: 30px;
+      height: 30px;
+    }
+
+    .question-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .skip-q-btn {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #8aafc8;
+      background: none;
+      border: none;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: color 0.2s ease;
+      padding: 0;
+    }
+    .skip-q-btn:hover { color: #1a6fa0; }
+    .skip-q-btn.skipped {
+      text-decoration: line-through;
+      opacity: 0.4;
+    }
+
+    /* Skip all row */
+    .skip-all-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(130, 214, 245, 0.2);
+    }
+
+    .skip-all-btn {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #8aafc8;
+      background: none;
+      border: 1px solid rgba(130, 214, 245, 0.3);
+      border-radius: 50px;
+      padding: 8px 20px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .skip-all-btn:hover {
+      color: #1a6fa0;
+      border-color: rgba(130, 214, 245, 0.7);
+      background: rgba(130, 214, 245, 0.08);
+    }
+
+    /* ── Step 4 — Review Script ── */
+    .script-step {
+      display: none;
+      margin-left: 280px;
+      padding: 60px 100px 50px;
+      flex-direction: column;
+      align-items: center;
+      height: calc(100vh - 60px);
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    }
+    .script-step.active  { display: flex; }
+    .script-step.visible { opacity: 1; transform: translateY(0); }
+    .script-step .step-eyebrow,
+    .script-step .step-heading,
+    .script-step .step-subtext { text-align: center; }
+
+    /* Tone regenerate chips */
+    .tone-chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin: 20px 0 18px;
+      width: 100%;
+    }
+
+    .tone-chip {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.84rem;
+      font-weight: 450;
+      color: #1a3a5c;
+      background: rgba(235, 246, 255, 0.6);
+      border: 1.5px solid rgba(130, 214, 245, 0.3);
+      border-radius: 50px;
+      padding: 9px 22px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      flex: 0 0 auto;
+      transition: background 0.3s ease, border-color 0.3s ease,
+                  box-shadow 0.3s ease, transform 0.25s cubic-bezier(0.22,1,0.36,1);
+      user-select: none;
+    }
+    .tone-chip:hover {
+      border-color: rgba(130, 214, 245, 0.7);
+      background: rgba(200, 238, 255, 0.4);
+      transform: translateY(-1px);
+    }
+    .tone-chip.selected {
+      background: rgba(130, 214, 245, 0.22);
+      border-color: #82D6F5;
+      font-weight: 600;
+      color: #0a3a5c;
+      box-shadow: 0 0 18px rgba(130, 214, 245, 0.4),
+                  inset 0 0 8px rgba(130, 214, 245, 0.1);
+    }
+
+    /* Script editor box */
+    .script-editor-wrap {
+      width: 100%;
+      flex: 1;
+      position: relative;
+      background: rgba(235, 246, 255, 0.45);
+      border: 1.5px solid rgba(130, 214, 245, 0.22);
+      border-radius: 20px;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .script-editor-wrap:focus-within {
+      border-color: rgba(130, 214, 245, 0.6);
+      box-shadow: 0 0 24px rgba(130, 214, 245, 0.18);
+    }
+
+    .script-editor-label {
+      position: absolute;
+      top: 14px;
+      right: 20px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #82D6F5;
+      pointer-events: none;
+    }
+
+    .script-textarea {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      padding: 40px 24px 24px;
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 1rem;
+      color: #0a1f3a;
+      line-height: 1.8;
+      resize: none;
+    }
+    .script-textarea::placeholder { color: #a0bdd0; font-style: italic; }
+
+    /* Script section headers */
+    .script-section-tag {
+      color: #82D6F5;
+      font-style: normal;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+
+    /* Bottom action bar */
+    .script-action-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 18px;
+    }
+
+    .script-action-left {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .script-ghost-btn {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: #4a6a8a;
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: color 0.25s ease;
+      padding: 0;
+    }
+    .script-ghost-btn:hover { color: #1a6fa0; }
+
+    /* ── Step 5 — Record ── */
+    .record-step {
+      display: none;
+      margin-left: 280px;
+      padding: 60px 100px 50px;
+      flex-direction: column;
+      align-items: center;
+      height: calc(100vh - 60px);
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    }
+    .record-step.active  { display: flex; }
+    .record-step.visible { opacity: 1; transform: translateY(0); }
+
+    /* Teleprompter */
+    .teleprompter {
+      width: 100%;
+      background: rgba(235, 246, 255, 0.45);
+      border: 1.5px solid rgba(130, 214, 245, 0.22);
+      border-radius: 18px;
+      padding: 24px 28px;
+      backdrop-filter: blur(10px);
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 28px;
+      position: relative;
+    }
+
+    .teleprompter-label {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #82D6F5;
+      margin-bottom: 12px;
+    }
+
+    .teleprompter-text {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 1rem;
+      color: #0a1f3a;
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+
+    /* Ball record button */
+    .record-btn-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .ball-btn {
+      position: relative;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      overflow: hidden;
+      cursor: pointer;
+      border: none;
+      padding: 0;
+      background: transparent;
+      transition: transform 0.3s cubic-bezier(0.22,1,0.36,1),
+                  box-shadow 0.3s ease;
+      box-shadow: 0 0 30px rgba(130, 214, 245, 0.3);
+    }
+
+    .ball-btn video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+      /* Trim the ball: crop to a tight circle */
+      transform: scale(1.15);
+    }
+
+    .ball-btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 50px rgba(130, 214, 245, 0.55),
+                  0 0 90px rgba(130, 214, 245, 0.2);
+    }
+
+    .ball-btn.recording {
+      box-shadow: 0 0 50px rgba(255, 90, 90, 0.5),
+                  0 0 100px rgba(255, 90, 90, 0.2);
+      animation: record-pulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes record-pulse {
+      0%,100% { box-shadow: 0 0 40px rgba(255,90,90,0.45), 0 0 80px rgba(255,90,90,0.15); }
+      50%      { box-shadow: 0 0 70px rgba(255,90,90,0.7), 0 0 130px rgba(255,90,90,0.25); }
+    }
+
+    /* Overlay icon on ball */
+    .ball-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 31, 58, 0.25);
+      border-radius: 50%;
+      transition: background 0.3s ease;
+    }
+
+    .ball-btn:hover .ball-overlay { background: rgba(10, 31, 58, 0.1); }
+    .ball-btn.recording .ball-overlay { background: rgba(200, 40, 40, 0.15); }
+
+    .ball-overlay svg { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4)); }
+
+    .record-label {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #4a6a8a;
+      transition: color 0.3s ease;
+    }
+
+    .record-label.active-rec { color: #cc3333; }
+
+    /* Waveform visualiser */
+    .waveform-bar {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 40px;
+    }
+
+    .waveform-bar span {
+      display: block;
+      width: 4px;
+      border-radius: 4px;
+      background: rgba(130, 214, 245, 0.4);
+      transform-origin: center;
+    }
+
+    .waveform-bar.live span {
+      background: #82D6F5;
+      animation: wave-bar 0.6s ease-in-out infinite alternate;
+    }
+
+    .waveform-bar span:nth-child(1)  { height: 14px; animation-delay: 0s; }
+    .waveform-bar span:nth-child(2)  { height: 22px; animation-delay: 0.07s; }
+    .waveform-bar span:nth-child(3)  { height: 32px; animation-delay: 0.14s; }
+    .waveform-bar span:nth-child(4)  { height: 40px; animation-delay: 0.21s; }
+    .waveform-bar span:nth-child(5)  { height: 28px; animation-delay: 0.28s; }
+    .waveform-bar span:nth-child(6)  { height: 36px; animation-delay: 0.35s; }
+    .waveform-bar span:nth-child(7)  { height: 20px; animation-delay: 0.42s; }
+    .waveform-bar span:nth-child(8)  { height: 34px; animation-delay: 0.49s; }
+    .waveform-bar span:nth-child(9)  { height: 26px; animation-delay: 0.56s; }
+    .waveform-bar span:nth-child(10) { height: 16px; animation-delay: 0.63s; }
+    .waveform-bar span:nth-child(11) { height: 30px; animation-delay: 0.7s; }
+    .waveform-bar span:nth-child(12) { height: 22px; animation-delay: 0.77s; }
+
+    @keyframes wave-bar {
+      from { transform: scaleY(0.3); }
+      to   { transform: scaleY(1); }
+    }
+    .content-step.active { display: flex; }
+    .content-step.visible { opacity: 1; transform: translateY(0); }
+
+    .content-step .step-eyebrow,
+    .content-step .step-heading,
+    .content-step .step-subtext { text-align: center; }
+
+    /* Two path cards */
+    .path-cards {
+      display: flex;
+      gap: 20px;
+      width: 100%;
+      margin-bottom: 32px;
+    }
+
+    .path-card {
+      flex: 1;
+      background: rgba(235, 246, 255, 0.5);
+      border: 1.5px solid rgba(130, 214, 245, 0.25);
+      border-radius: 20px;
+      padding: 32px 24px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: background 0.35s ease, border-color 0.35s ease,
+                  box-shadow 0.35s ease, transform 0.3s cubic-bezier(0.22,1,0.36,1);
+      position: relative;
+    }
+
+    .path-card:hover {
+      background: rgba(200, 238, 255, 0.4);
+      border-color: rgba(130, 214, 245, 0.6);
+      box-shadow: 0 0 24px rgba(130, 214, 245, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .path-card.selected {
+      background: rgba(130, 214, 245, 0.18);
+      border-color: #82D6F5;
+      box-shadow: 0 0 30px rgba(130, 214, 245, 0.4),
+                  inset 0 0 14px rgba(130, 214, 245, 0.1);
+    }
+
+    .card-badge {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #82D6F5;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .path-card.selected .card-badge { opacity: 1; }
+
+    .card-badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #82D6F5;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    .card-icon-wrap {
+      width: 54px; height: 54px;
+      border-radius: 16px;
+      background: rgba(13, 31, 60, 0.07);
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 24px;
+      color: #1a6fa0;
+      transition: background 0.3s ease;
+    }
+
+    .path-card.selected .card-icon-wrap {
+      background: rgba(130, 214, 245, 0.2);
+    }
+
+    .card-title {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #0a1f3a;
+    }
+
+    .card-desc {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.8rem;
+      color: #4a6a8a;
+      text-align: center;
+    }
+
+    /* Transcript / paste area */
+    .transcript-box {
+      width: 100%;
+      position: relative;
+      margin-bottom: 10px;
+    }
+
+    .transcript-textarea {
+      width: 100%;
+      min-height: 180px;
+      background: rgba(235, 246, 255, 0.45);
+      border: 1.5px solid rgba(130, 214, 245, 0.25);
+      border-radius: 18px;
+      padding: 22px 24px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.92rem;
+      color: #1a3a5c;
+      line-height: 1.7;
+      resize: none;
+      outline: none;
+      backdrop-filter: blur(8px);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .transcript-textarea::placeholder { color: #a0bdd0; }
+
+    .transcript-textarea:focus {
+      border-color: rgba(130, 214, 245, 0.65);
+      box-shadow: 0 0 20px rgba(130, 214, 245, 0.2);
+    }
+
+    .word-count {
+      text-align: right;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #8aafc8;
+      margin-bottom: 28px;
+    }
+
+    .word-count span { color: #4a6a8a; }
+
+    /* Bottom action row */
+    .action-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .rerecord-btn {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      color: #8aafc8;
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.25s ease;
+    }
+
+    .rerecord-btn:hover { color: #1a6fa0; }
+
+    .step-eyebrow {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #82D6F5;
+      margin-bottom: 14px;
+    }
+
+    .step-heading {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 3.6rem;
+      font-weight: 700;
+      color: #0a1f3a;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    .step-subtext {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.95rem;
+      color: #4a6a8a;
+      line-height: 1.6;
+      margin-bottom: 44px;
+    }
+
+    /* Section labels */
+    .field-label {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #8aafc8;
+      margin-bottom: 14px;
+    }
+
+    .chips-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 36px;
+      justify-content: center;
+    }
+
+    .chips-group .chip {
+      flex: 0 0 auto;
+    }
+
+    /* Chips */
+    .chip {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.88rem;
+      font-weight: 450;
+      color: #1a3a5c;
+      background: rgba(235, 246, 255, 0.6);
+      border: 1.5px solid rgba(130, 214, 245, 0.3);
+      border-radius: 50px;
+      padding: 10px 22px;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: background 0.4s ease,
+                  border-color 0.4s ease,
+                  box-shadow 0.4s ease,
+                  color 0.3s ease,
+                  transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      user-select: none;
+    }
+
+    .chip:hover {
+      border-color: rgba(130, 214, 245, 0.7);
+      background: rgba(200, 238, 255, 0.4);
+      box-shadow: 0 0 14px rgba(130, 214, 245, 0.3),
+                  inset 0 0 8px rgba(130, 214, 245, 0.08);
+      color: #0a1f3a;
+      transform: translateY(-1px);
+    }
+
+    .chip.selected {
+      background: rgba(130, 214, 245, 0.22);
+      border-color: #82D6F5;
+      color: #0a3a5c;
+      font-weight: 600;
+      box-shadow: 0 0 20px rgba(130, 214, 245, 0.45),
+                  inset 0 0 10px rgba(130, 214, 245, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .chip-icon {
+      margin-right: 6px;
+      font-size: 0.9em;
+    }
+
+    /* Highlight textarea */
+    .highlight-box {
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .highlight-textarea {
+      width: 100%;
+      min-height: 100px;
+      background: rgba(235, 246, 255, 0.5);
+      border: 1.5px solid rgba(130, 214, 245, 0.25);
+      border-radius: 16px;
+      padding: 18px 60px 18px 20px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.9rem;
+      color: #1a3a5c;
+      resize: none;
+      outline: none;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: all 0.25s ease;
+    }
+
+    .highlight-textarea::placeholder { color: #a0bdd0; }
+
+    .highlight-textarea:focus {
+      border-color: rgba(130, 214, 245, 0.7);
+      background: rgba(220, 244, 255, 0.35);
+      box-shadow: 0 0 20px rgba(130, 214, 245, 0.25);
+    }
+
+    /* Audio button inside textarea area */
+    .audio-btn {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(130, 214, 245, 0.5);
+      background: rgba(235, 246, 255, 0.8);
+      color: #1a6fa0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(8px);
+    }
+
+    .audio-btn:hover {
+      background: rgba(130, 214, 245, 0.25);
+      border-color: #82D6F5;
+      box-shadow: 0 0 14px rgba(130, 214, 245, 0.4);
+    }
+
+    .audio-btn.recording {
+      background: rgba(255, 100, 100, 0.15);
+      border-color: #ff6464;
+      color: #cc2222;
+      animation: pulse-record 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-record {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 100, 100, 0.4); }
+      50%       { box-shadow: 0 0 0 8px rgba(255, 100, 100, 0); }
+    }
+
+    /* Continue button */
+    .continue-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: #0a2a45;
+      background: linear-gradient(135deg, #a8dff5 0%, #d0f0ff 100%);
+      border: none;
+      border-radius: 50px;
+      padding: 16px 40px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(130, 214, 245, 0.3);
+    }
+
+    .continue-btn:hover {
+      background: linear-gradient(135deg, #82D6F5 0%, #b8ebff 100%);
+      box-shadow: 0 6px 30px rgba(130, 214, 245, 0.55);
+      transform: translateY(-2px);
+    }
+
+    .continue-arrow {
+      font-size: 1.1rem;
+      transition: transform 0.3s ease;
+    }
+
+    .continue-btn:hover .continue-arrow {
+      transform: translateX(4px);
+    }
+  </style>
+</head>
+<body>
+
+  <section class="hero" id="hero">
+    <div class="logo">
+      <img src="images/logo.png" alt="Utterrr">
+      <p class="tagline">prepare for your next big talk</p>
+      <button class="glass-btn" style="margin-top: 14px;" id="startHereBtn">START HERE</button>
+    </div>
+    <div class="waves-container" id="wavesContainer">
+
+      <!--
+        Each layer fills FROM its wave curve DOWN to the SVG bottom (y=340).
+        Layers are stacked lightest-on-top so each darker band stays visible
+        above the lighter layer that covers it below.
+
+        z-index order: 1 = darkest (back), 6 = lightest (front)
+        Wave curves alternate phase so adjacent bands interlock like the image.
+      -->
+
+      <!--
+        8 full cycles (16 half-cycles × 90 px = 1440 px).
+        Control points at 37 % (33 px) and 63 % (57 px) of each half-cycle.
+        SVG overshoots 10 % each side so endpoints stay off-screen.
+      -->
+
+      <!-- Layer 1 · darkest · z-index 1 · rise-first -->
+      <div class="wave-layer" style="z-index:1;">
+        <svg viewBox="0 0 1440 340" preserveAspectRatio="none">
+          <path d="M0,50
+            C33,12  57,12  90,50  C123,88  147,88  180,50
+            C213,12  237,12  270,50  C303,88  327,88  360,50
+            C393,12  417,12  450,50  C483,88  507,88  540,50
+            C573,12  597,12  630,50  C663,88  687,88  720,50
+            C753,12  777,12  810,50  C843,88  867,88  900,50
+            C933,12  957,12  990,50  C1023,88 1047,88 1080,50
+            C1113,12 1137,12 1170,50 C1203,88 1227,88 1260,50
+            C1293,12 1317,12 1350,50 C1383,88 1407,88 1440,50
+            L1440,340 L0,340 Z" fill="#0d1f3c"/>
+        </svg>
+      </div>
+
+      <!-- Layer 2 · z-index 2 · fall-first -->
+      <div class="wave-layer" style="z-index:2;">
+        <svg viewBox="0 0 1440 340" preserveAspectRatio="none">
+          <path d="M0,105
+            C33,143 57,143 90,105  C123,67  147,67  180,105
+            C213,143 237,143 270,105 C303,67  327,67  360,105
+            C393,143 417,143 450,105 C483,67  507,67  540,105
+            C573,143 597,143 630,105 C663,67  687,67  720,105
+            C753,143 777,143 810,105 C843,67  867,67  900,105
+            C933,143 957,143 990,105 C1023,67 1047,67 1080,105
+            C1113,143 1137,143 1170,105 C1203,67 1227,67 1260,105
+            C1293,143 1317,143 1350,105 C1383,67 1407,67 1440,105
+            L1440,340 L0,340 Z" fill="#163358"/>
+        </svg>
+      </div>
+
+      <!-- Layer 3 · z-index 3 · rise-first -->
+      <div class="wave-layer" style="z-index:3;">
+        <svg viewBox="0 0 1440 340" preserveAspectRatio="none">
+          <path d="M0,160
+            C33,122 57,122 90,160  C123,198 147,198 180,160
+            C213,122 237,122 270,160 C303,198 327,198 360,160
+            C393,122 417,122 450,160 C483,198 507,198 540,160
+            C573,122 597,122 630,160 C663,198 687,198 720,160
+            C753,122 777,122 810,160 C843,198 867,198 900,160
+            C933,122 957,122 990,160 C1023,198 1047,198 1080,160
+            C1113,122 1137,122 1170,160 C1203,198 1227,198 1260,160
+            C1293,122 1317,122 1350,160 C1383,198 1407,198 1440,160
+            L1440,340 L0,340 Z" fill="#1e5080"/>
+        </svg>
+      </div>
+
+      <!-- Layer 4 · z-index 4 · fall-first -->
+      <div class="wave-layer" style="z-index:4;">
+        <svg viewBox="0 0 1440 340" preserveAspectRatio="none">
+          <path d="M0,210
+            C33,248 57,248 90,210  C123,172 147,172 180,210
+            C213,248 237,248 270,210 C303,172 327,172 360,210
+            C393,248 417,248 450,210 C483,172 507,172 540,210
+            C573,248 597,248 630,210 C663,172 687,172 720,210
+            C753,248 777,248 810,210 C843,172 867,172 900,210
+            C933,248 957,248 990,210 C1023,172 1047,172 1080,210
+            C1113,248 1137,248 1170,210 C1203,172 1227,172 1260,210
+            C1293,248 1317,248 1350,210 C1383,172 1407,172 1440,210
+            L1440,340 L0,340 Z" fill="#2d78b0"/>
+        </svg>
+      </div>
+
+      <!-- Layer 5 · z-index 5 · rise-first -->
+      <div class="wave-layer" style="z-index:5;">
+        <svg viewBox="0 0 1440 340" preserveAspectRatio="none">
+          <path d="M0,258
+            C33,226 57,226 90,258  C123,290 147,290 180,258
+            C213,226 237,226 270,258 C303,290 327,290 360,258
+            C393,226 417,226 450,258 C483,290 507,290 540,258
+            C573,226 597,226 630,258 C663,290 687,290 720,258
+            C753,226 777,226 810,258 C843,290 867,290 900,258
+            C933,226 957,226 990,258 C1023,290 1047,290 1080,258
+            C1113,226 1137,226 1170,258 C1203,290 1227,290 1260,258
+            C1293,226 1317,226 1350,258 C1383,290 1407,290 1440,258
+            L1440,340 L0,340 Z" fill="#5ba8ce"/>
+        </svg>
+      </div>
+
+      <!-- Layer 6 · lightest · z-index 6 · fall-first · gradient to white -->
+      <div class="wave-layer" style="z-index:6;">
+        <svg viewBox="0 0 1440 340" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="blueToWhite" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stop-color="#a8d8ec"/>
+              <stop offset="100%" stop-color="#ffffff"/>
+            </linearGradient>
+          </defs>
+          <path d="M0,280
+            C33,300 57,300 90,280  C123,260 147,260 180,280
+            C213,300 237,300 270,280 C303,260 327,260 360,280
+            C393,300 417,300 450,280 C483,260 507,260 540,280
+            C573,300 597,300 630,280 C663,260 687,260 720,280
+            C753,300 777,300 810,280 C843,260 867,260 900,280
+            C933,300 957,300 990,280 C1023,260 1047,260 1080,280
+            C1113,300 1137,300 1170,280 C1203,260 1227,260 1260,280
+            C1293,300 1317,300 1350,280 C1383,260 1407,260 1440,280
+            L1440,340 L0,340 Z" fill="url(#blueToWhite)"/>
+        </svg>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- White page revealed as waves scroll up -->
+  <div class="white-section">
+    <nav class="steps-sidebar" id="stepsSidebar">
+
+
+      <div class="step-item active" id="sidebarStep1">
+        <svg class="step-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="18" r="14"/>
+          <path d="M12 18h5M18 13v5"/>
+          <circle cx="24" cy="22" r="3" fill="currentColor" stroke="none" opacity="0.25"/>
+          <path d="M22 16h4M22 20h3"/>
+        </svg>
+        <div class="step-text">
+          <span class="step-num">Step 1</span>
+          <span class="step-label">Context</span>
+          <span class="step-desc">Occasion, tone &amp; highlight</span>
+        </div>
+      </div>
+
+      <div class="step-divider"></div>
+
+      <div class="step-item">
+        <svg class="step-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="14" r="5"/>
+          <path d="M11 14c0 3.87 3.13 7 7 7s7-3.13 7-7"/>
+          <line x1="18" y1="21" x2="18" y2="27"/>
+          <line x1="13" y1="27" x2="23" y2="27"/>
+        </svg>
+        <div class="step-text">
+          <span class="step-num">Step 2</span>
+          <span class="step-label">Content</span>
+          <span class="step-desc">Record voice or paste text</span>
+        </div>
+      </div>
+
+      <div class="step-divider"></div>
+
+      <div class="step-item">
+        <svg class="step-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="18" r="14"/>
+          <path d="M13 18h10M18 13l5 5-5 5"/>
+          <circle cx="13" cy="18" r="2" fill="currentColor" stroke="none" opacity="0.3"/>
+        </svg>
+        <div class="step-text">
+          <span class="step-num">Step 3</span>
+          <span class="step-label">Enrich</span>
+          <span class="step-desc">Gemini asks 2–4 questions</span>
+        </div>
+      </div>
+
+      <div class="step-divider"></div>
+
+      <div class="step-item">
+        <svg class="step-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="10" width="20" height="16" rx="3"/>
+          <line x1="12" y1="15" x2="24" y2="15"/>
+          <line x1="12" y1="19" x2="20" y2="19"/>
+          <line x1="12" y1="22" x2="17" y2="22"/>
+        </svg>
+        <div class="step-text">
+          <span class="step-num">Step 4</span>
+          <span class="step-label">Review Script</span>
+          <span class="step-desc">Edit, regenerate or finalise</span>
+        </div>
+      </div>
+
+      <div class="step-divider"></div>
+
+      <div class="step-item">
+        <svg class="step-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="14" r="5"/>
+          <path d="M11 14c0 3.87 3.13 7 7 7s7-3.13 7-7"/>
+          <line x1="18" y1="21" x2="18" y2="27"/>
+          <rect x="10" y="6" width="16" height="3" rx="1.5" fill="currentColor" stroke="none" opacity="0.2"/>
+        </svg>
+        <div class="step-text">
+          <span class="step-num">Step 5</span>
+          <span class="step-label">Record</span>
+          <span class="step-desc">Script teleprompter + delivery</span>
+        </div>
+      </div>
+
+      <div class="step-divider"></div>
+
+      <div class="step-item">
+        <svg class="step-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6,26 12,16 17,21 22,12 28,26"/>
+          <circle cx="28" cy="12" r="2.5" fill="currentColor" stroke="none" opacity="0.3"/>
+        </svg>
+        <div class="step-text">
+          <span class="step-num">Step 6</span>
+          <span class="step-label">Analysis</span>
+          <span class="step-desc">Flow score + timestamped issues</span>
+        </div>
+      </div>
+
+      <div class="step-divider"></div>
+
+      <div class="step-item">
+        <svg class="step-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="14,10 28,18 14,26"/>
+          <line x1="8" y1="10" x2="8" y2="26"/>
+          <line x1="11" y1="10" x2="11" y2="26"/>
+        </svg>
+        <div class="step-text">
+          <span class="step-num">Step 7</span>
+          <span class="step-label">Model Audio</span>
+          <span class="step-desc">3 delivery modes via TTS</span>
+        </div>
+      </div>
+
+      <div class="step-divider"></div>
+
+      <div class="step-item">
+        <svg class="step-icon" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M26 10a10 10 0 1 1-10 10"/>
+          <polyline points="22,6 26,10 22,14"/>
+          <line x1="18" y1="18" x2="18" y2="13"/>
+          <circle cx="18" cy="18" r="2" fill="currentColor" stroke="none" opacity="0.3"/>
+        </svg>
+        <div class="step-text">
+          <span class="step-num">Step 8</span>
+          <span class="step-label">Iterate</span>
+          <span class="step-desc">Record → analyse → improve</span>
+        </div>
+      </div>
+
+    </nav>
+
+    <!-- Step 1 Content -->
+    <div class="context-step" id="contextStep">
+
+      <p class="step-eyebrow">Step 1 — The Context</p>
+      <h1 class="step-heading">Where are you<br>speaking?</h1>
+      <p class="step-subtext">Our AI adapts its reasoning, vocabulary, and delivery style<br>based on your unique environment.</p>
+
+      <p class="field-label">Occasion</p>
+      <div class="chips-group" id="occasionChips">
+        <span class="chip" data-group="occasion">🎤 Conference</span>
+        <span class="chip selected" data-group="occasion">💼 Job interview</span>
+        <span class="chip" data-group="occasion">🤝 Networking</span>
+        <span class="chip" data-group="occasion">🎉 Casual event</span>
+        <span class="chip" data-group="occasion">👋 Team intro</span>
+        <span class="chip" data-group="occasion">✦ Other</span>
+      </div>
+
+      <p class="field-label">Desired Tone</p>
+      <div class="chips-group" id="toneChips">
+        <span class="chip" data-group="tone">💼 Professional</span>
+        <span class="chip" data-group="tone">😊 Friendly</span>
+        <span class="chip" data-group="tone">☕ Casual</span>
+        <span class="chip" data-group="tone">🔥 Bold</span>
+        <span class="chip" data-group="tone">🤍 Warm</span>
+      </div>
+
+      <p class="field-label">Anything to highlight? <span style="opacity:0.5;font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></p>
+      <div class="highlight-box">
+        <textarea class="highlight-textarea" id="highlightText" placeholder="e.g. I'm a product designer at USC, passionate about accessible tech…" rows="4"></textarea>
+        <button class="audio-btn" id="audioBtn" title="Speak instead">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="step-spacer"></div>
+      <div class="continue-row">
+        <button class="continue-btn">Continue journey <span class="continue-arrow">→</span></button>
+      </div>
+
+    </div>
+
+    <!-- Step 2 Content -->
+    <div class="content-step" id="contentStep">
+
+      <p class="step-eyebrow">Step 2 — The Content</p>
+      <h1 class="step-heading">What do you<br>want to say?</h1>
+      <p class="step-subtext">Speak it or paste it — your choice.</p>
+
+      <!-- Record card + re-record together -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:16px; margin-bottom:16px;">
+        <div class="path-card" id="recordCard" style="width:220px; padding:20px 20px 18px;">
+          <div class="card-badge"><span class="card-badge-dot"></span>ElevenLabs STT Active</div>
+          <div class="card-icon-wrap" style="margin-top:16px; width:44px; height:44px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </div>
+          <span class="card-title" style="font-size:0.9rem;">Record voice</span>
+          <span class="card-desc">Just talk naturally. Rough draft is fine.</span>
+        </div>
+
+        <button class="rerecord-btn" id="rerecordBtn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"/>
+            <path d="M3.51 15a9 9 0 1 0 .49-4"/>
+          </svg>
+          Re-record
+        </button>
+      </div>
+
+      <div class="transcript-box">
+        <textarea class="transcript-textarea" id="transcriptText" rows="7"
+          placeholder="Start talking and your words will appear here — or just paste your draft directly into this box."></textarea>
+      </div>
+
+      <div class="word-count" id="wordCount">0 WORDS <span>(MINIMUM 20 RECOMMENDED)</span></div>
+
+      <div class="step-spacer"></div>
+      <div class="continue-row">
+        <button class="continue-btn" id="analyseBtn">Analyse &amp; Enrich <span class="continue-arrow">→</span></button>
+      </div>
+
+    </div>
+
+    <!-- Step 4 Content -->
+    <div class="script-step" id="scriptStep">
+
+      <p class="step-eyebrow">Step 4 — Review Script</p>
+      <h1 class="step-heading">The Polished Draft</h1>
+      <p class="step-subtext">Your narrative is ready for its final refinement.</p>
+
+      <div class="tone-chips-row">
+        <span class="tone-chip" data-group="tone-regen">More Professional</span>
+        <span class="tone-chip selected" data-group="tone-regen">More Punchy</span>
+        <span class="tone-chip" data-group="tone-regen">More Emotional</span>
+        <span class="tone-chip" data-group="tone-regen">More Concise</span>
+      </div>
+
+      <div class="script-editor-wrap">
+        <span class="script-editor-label">Live Script Editor</span>
+        <textarea class="script-textarea" id="scriptTextarea" spellcheck="true">[Opening: The Hook]
+"Imagine a world where silence isn't an absence of sound, but a canvas of potential. We often think of great oratory as a storm of words, but the most resonant voices are those that understand the rhythm of the pause…"
+
+[The Problem: Modern Noise]
+Today, we are drowned in a sea of generic content. AI generates millions of words every minute. But how many of those words actually vibrate in the chest of the listener? How many move the needle from 'information' to 'inspiration'?
+
+[Your Story]
+That's the question that brought me here. I've spent the last year building something different — a tool that doesn't replace your voice, but sharpens it.
+
+[The Call to Action]
+So today I want to invite you to stop performing, and start speaking. Because the world doesn't need more words. It needs yours.</textarea>
+      </div>
+
+      <div class="script-action-bar">
+        <div class="script-action-left">
+          <button class="script-ghost-btn" id="editDirectlyBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Edit Directly
+          </button>
+          <button class="script-ghost-btn" id="regenerateBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1 4 1 10 7 10"/>
+              <path d="M3.51 15a9 9 0 1 0 .49-4"/>
+            </svg>
+            Regenerate
+          </button>
+        </div>
+        <button class="continue-btn" id="finaliseBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Finalise Script
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Step 5 Content -->
+    <div class="record-step" id="recordStep">
+
+      <p class="step-eyebrow">Step 5 — Record</p>
+      <h1 class="step-heading" style="font-size:2.8rem;">Your stage is ready.</h1>
+      <p class="step-subtext">Your script is above. Speak naturally — ElevenLabs STT is listening.</p>
+
+      <!-- Teleprompter -->
+      <div class="teleprompter">
+        <p class="teleprompter-label">Your Script</p>
+        <p class="teleprompter-text" id="teleprompterText">[Opening: The Hook]
+"Imagine a world where silence isn't an absence of sound, but a canvas of potential…"
+
+[The Problem]
+Today, we are drowned in a sea of generic content. How many words actually vibrate in the chest of the listener?
+
+[Your Story]
+I've spent the last year building something different — a tool that doesn't replace your voice, but sharpens it.
+
+[Call to Action]
+Stop performing, and start speaking. The world doesn't need more words. It needs yours.</p>
+      </div>
+
+      <!-- Ball record button -->
+      <div class="record-btn-wrap">
+        <div class="waveform-bar" id="waveformBar">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+
+        <button class="ball-btn" id="ballBtn" title="Tap to record">
+          <video autoplay muted loop playsinline>
+            <source src="images/ball.mov" type="video/mp4">
+          </video>
+          <div class="ball-overlay">
+            <svg id="ballIcon" width="38" height="38" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="11" r="3"/>
+              <path d="M19 11a7 7 0 0 1-14 0"/>
+              <line x1="12" y1="18" x2="12" y2="22"/>
+              <line x1="8" y1="22" x2="16" y2="22"/>
+            </svg>
+          </div>
+        </button>
+
+        <p class="record-label" id="recordLabel">Tap to record</p>
+      </div>
+
+      <div class="continue-row" style="margin-top:0;">
+        <button class="continue-btn" id="recordNextBtn">Go to Analysis <span class="continue-arrow">→</span></button>
+      </div>
+
+    </div>
+
+    <!-- Step 3 Content -->
+    <div class="enrich-step" id="enrichStep">
+
+      <p class="step-eyebrow">Step 3 — Enrich</p>
+      <h1 class="step-heading">Let's go a little<br>deeper.</h1>
+      <p class="step-subtext">Gemini has a few questions to sharpen your message.<br>Answer what feels right — skip the rest.</p>
+
+      <div class="questions-list">
+
+        <div class="question-card">
+          <p class="question-label">Question 1 of 4</p>
+          <p class="question-text">What's the one thing you most want your audience to remember after you speak?</p>
+          <div class="question-input-wrap">
+            <textarea class="question-input" rows="2" placeholder="e.g. That AI can amplify creativity, not replace it…"></textarea>
+            <button class="audio-btn enrich-mic" title="Speak your answer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <div class="question-footer">
+            <button class="skip-q-btn" onclick="skipQuestion(this)">Skip this question →</button>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <p class="question-label">Question 2 of 4</p>
+          <p class="question-text">Is there a personal story or moment that shaped why you care about this topic?</p>
+          <div class="question-input-wrap">
+            <textarea class="question-input" rows="2" placeholder="e.g. When I first saw a student light up using an AI tool…"></textarea>
+            <button class="audio-btn enrich-mic" title="Speak your answer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <div class="question-footer">
+            <button class="skip-q-btn" onclick="skipQuestion(this)">Skip this question →</button>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <p class="question-label">Question 3 of 4</p>
+          <p class="question-text">Who is in the room — and what do they already believe or assume about your topic?</p>
+          <div class="question-input-wrap">
+            <textarea class="question-input" rows="2" placeholder="e.g. Mostly engineers, skeptical of AI hype…"></textarea>
+            <button class="audio-btn enrich-mic" title="Speak your answer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <div class="question-footer">
+            <button class="skip-q-btn" onclick="skipQuestion(this)">Skip this question →</button>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <p class="question-label">Question 4 of 4</p>
+          <p class="question-text">What do you want your audience to feel or do differently after hearing you?</p>
+          <div class="question-input-wrap">
+            <textarea class="question-input" rows="2" placeholder="e.g. Leave with curiosity and one actionable idea…"></textarea>
+            <button class="audio-btn enrich-mic" title="Speak your answer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <div class="question-footer">
+            <button class="skip-q-btn" onclick="skipQuestion(this)">Skip this question →</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="skip-all-row">
+        <button class="skip-all-btn" id="skipAllBtn">Skip all questions</button>
+        <button class="continue-btn" id="enrichNextBtn">Build my script <span class="continue-arrow">→</span></button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // Wrap each .wave-layer in a scroll-transform div so the CSS horizontal
+    // drift animation and the JS vertical parallax don't conflict.
+    const waveLayers = Array.from(document.querySelectorAll('.wave-layer'));
+
+    waveLayers.forEach((layer, i) => {
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = `
+        position: absolute; bottom: 0; left: 0;
+        width: 100%; height: 100%;
+        z-index: ${i + 1};
+        will-change: transform;
+      `;
+      layer.style.removeProperty('z-index');
+      layer.parentNode.insertBefore(wrapper, layer);
+      wrapper.appendChild(layer);
+    });
+
+    const wrappers = Array.from(
+      document.querySelectorAll('.waves-container > div')
+    );
+
+    const sidebar     = document.getElementById('stepsSidebar');
+    const heroEl      = document.getElementById('hero');
+    const contextStep = document.getElementById('contextStep');
+    const contentStep = document.getElementById('contentStep');
+    const enrichStep  = document.getElementById('enrichStep');
+    const scriptStep  = document.getElementById('scriptStep');
+    let currentStep   = 1;
+
+    const allPanels = { 1: contextStep, 2: contentStep, 3: enrichStep, 4: scriptStep };
+
+    // Sidebar step items in order
+    const sidebarItems = document.querySelectorAll('.step-item');
+
+    function activateSidebarStep(n) {
+      sidebarItems.forEach((item, i) => {
+        item.classList.toggle('active', i === n - 1);
+      });
+    }
+
+    function showStep(n) {
+      currentStep = n;
+      activateSidebarStep(n);
+
+      // Hide all panels
+      contextStep.style.display = 'none';
+      contextStep.classList.remove('visible');
+      contentStep.classList.remove('active', 'visible');
+      enrichStep.classList.remove('active', 'visible');
+
+      if (n === 1) {
+        contextStep.style.display = 'flex';
+        requestAnimationFrame(() => contextStep.classList.add('visible'));
+      } else if (n === 2) {
+        contentStep.classList.add('active');
+        requestAnimationFrame(() => requestAnimationFrame(() => contentStep.classList.add('visible')));
+      } else if (n === 3) {
+        enrichStep.classList.add('active');
+        requestAnimationFrame(() => requestAnimationFrame(() => enrichStep.classList.add('visible')));
+      } else if (n === 4) {
+        scriptStep.classList.add('active');
+        requestAnimationFrame(() => requestAnimationFrame(() => scriptStep.classList.add('visible')));
+      }
+    }
+
+    window.addEventListener('scroll', () => {
+      const sy = window.scrollY;
+      wrappers.forEach((w, i) => {
+        const extra = 0.6 - i * 0.08;
+        w.style.transform = `translateY(${-sy * extra}px)`;
+      });
+
+      if (sy > heroEl.offsetHeight * 0.6) {
+        sidebar.classList.add('visible');
+        if (currentStep === 1) contextStep.classList.add('visible');
+      } else {
+        sidebar.classList.remove('visible');
+        contextStep.classList.remove('visible');
+        contentStep.classList.remove('visible');
+      }
+    }, { passive: true });
+
+    // Slow custom scroll for START HERE
+    document.getElementById('startHereBtn').addEventListener('click', () => {
+      const target = document.querySelector('.white-section').offsetTop;
+      const start  = window.scrollY;
+      const dist   = target - start;
+      const duration = 900;
+      let startTime = null;
+
+      function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+      }
+
+      function step(ts) {
+        if (!startTime) startTime = ts;
+        const elapsed  = ts - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        window.scrollTo(0, start + dist * easeOutCubic(progress));
+        if (progress < 1) requestAnimationFrame(step);
+      }
+
+      requestAnimationFrame(step);
+    });
+
+    // Sidebar — click any step to navigate there
+    sidebarItems.forEach((item, i) => {
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', () => {
+        const n = i + 1;
+        if (n > 4) return; // only steps 1-4 built so far
+        const current = currentStep;
+        if (n === current) return;
+        // fade out current
+        const panels = { 1: contextStep, 2: contentStep };
+        if (panels[current]) panels[current].classList.remove('visible');
+        setTimeout(() => {
+          if (current === 1) contextStep.style.display = 'none';
+          showStep(n);
+          window.scrollTo({ top: document.querySelector('.white-section').offsetTop });
+        }, 300);
+      });
+    });
+
+    // Step 1 → Step 2 via Continue button
+    document.querySelector('#contextStep .continue-btn').addEventListener('click', () => {
+      contextStep.classList.remove('visible');
+      setTimeout(() => {
+        contextStep.style.display = 'none';
+        showStep(2);
+        window.scrollTo({ top: document.querySelector('.white-section').offsetTop });
+      }, 350);
+    });
+
+    // Word counter
+    document.getElementById('transcriptText').addEventListener('input', function() {
+      const words = this.value.trim().split(/\s+/).filter(w => w).length;
+      const count = this.value.trim() === '' ? 0 : words;
+      document.getElementById('wordCount').innerHTML =
+        `${count} WORDS <span>(MINIMUM 20 RECOMMENDED)</span>`;
+    });
+
+    // Re-record — clear and refocus
+    document.getElementById('rerecordBtn').addEventListener('click', () => {
+      document.getElementById('transcriptText').value = '';
+      document.getElementById('wordCount').innerHTML = '0 WORDS <span>(MINIMUM 20 RECOMMENDED)</span>';
+      document.getElementById('transcriptText').focus();
+    });
+
+    // Step 2 → Step 3
+    document.getElementById('analyseBtn').addEventListener('click', () => {
+      contentStep.classList.remove('visible');
+      setTimeout(() => { showStep(3); window.scrollTo({ top: document.querySelector('.white-section').offsetTop }); }, 350);
+    });
+
+    // Enrich mic buttons — one per question card
+    document.querySelectorAll('.enrich-mic').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const isRec = btn.classList.toggle('recording');
+        const input = btn.closest('.question-input-wrap').querySelector('.question-input');
+        btn.title = isRec ? 'Stop recording' : 'Speak your answer';
+        input.placeholder = isRec ? 'Listening…' : input.getAttribute('data-placeholder') || '';
+        // Stop all other mics when one starts
+        if (isRec) {
+          document.querySelectorAll('.enrich-mic.recording').forEach(other => {
+            if (other !== btn) {
+              other.classList.remove('recording');
+              other.title = 'Speak your answer';
+            }
+          });
+        }
+      });
+    });
+
+    // Step 3 — skip individual question
+    function skipQuestion(btn) {
+      const card = btn.closest('.question-card');
+      card.querySelector('.question-input').value = '';
+      card.querySelector('.question-input').disabled = true;
+      card.style.opacity = '0.45';
+      btn.classList.add('skipped');
+      btn.textContent = 'Skipped';
+    }
+    window.skipQuestion = skipQuestion;
+
+    // Step 3 — skip all
+    document.getElementById('skipAllBtn').addEventListener('click', () => {
+      document.querySelectorAll('#enrichStep .question-card').forEach(card => {
+        card.querySelector('.question-input').value = '';
+        card.querySelector('.question-input').disabled = true;
+        card.style.opacity = '0.45';
+        const btn = card.querySelector('.skip-q-btn');
+        btn.classList.add('skipped');
+        btn.textContent = 'Skipped';
+      });
+    });
+
+    // Step 3 → Step 4
+    document.getElementById('enrichNextBtn').addEventListener('click', () => {
+      enrichStep.classList.remove('visible');
+      setTimeout(() => { showStep(4); window.scrollTo({ top: document.querySelector('.white-section').offsetTop }); }, 350);
+    });
+
+    // Step 4 — tone chip selection
+    document.querySelectorAll('.tone-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.tone-chip').forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+      });
+    });
+
+    // Step 4 — Edit Directly: focus the textarea
+    document.getElementById('editDirectlyBtn').addEventListener('click', () => {
+      const ta = document.getElementById('scriptTextarea');
+      ta.focus();
+      ta.setSelectionRange(0, 0);
+    });
+
+    // Step 4 — Regenerate: flash a quick opacity pulse
+    document.getElementById('regenerateBtn').addEventListener('click', () => {
+      const wrap = document.querySelector('.script-editor-wrap');
+      wrap.style.opacity = '0.4';
+      wrap.style.transition = 'opacity 0.2s ease';
+      setTimeout(() => { wrap.style.opacity = '1'; }, 400);
+    });
+
+    // Step 4 — Finalise (placeholder)
+    document.getElementById('finaliseBtn').addEventListener('click', () => {
+      scriptStep.classList.remove('visible');
+    });
+
+    // Chip selection — single-select per group
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const group = chip.dataset.group;
+        document.querySelectorAll(`.chip[data-group="${group}"]`)
+          .forEach(c => c.classList.remove('selected'));
+        chip.classList.add('selected');
+      });
+    });
+
+    // Audio button toggle
+    const audioBtn = document.getElementById('audioBtn');
+    const highlightText = document.getElementById('highlightText');
+    let recording = false;
+    audioBtn.addEventListener('click', () => {
+      recording = !recording;
+      audioBtn.classList.toggle('recording', recording);
+      audioBtn.title = recording ? 'Stop recording' : 'Speak instead';
+      highlightText.placeholder = recording
+        ? 'Listening…'
+        : 'e.g. I\'m a product designer at USC, passionate about accessible tech…';
+    });
+  </script>
+
+</body>
+</html>
