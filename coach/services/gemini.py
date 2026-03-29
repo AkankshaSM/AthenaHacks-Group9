@@ -6,6 +6,8 @@ from typing import Any
 
 import requests
 
+from coach.services.elevenlabs import KNOWN_VOICES
+
 
 QUESTION_PROMPT = """
 You are an expert speech coach.
@@ -76,25 +78,56 @@ History snippets:
 
 
 ANALYSIS_PROMPT = """
-You are analyzing speaking delivery using the full speech metadata JSON and the original script.
-Do NOT ignore any provided JSON fields. Consider all of them.
+You are a speech delivery analyst AND an expert at enhancing dialogue for ElevenLabs v3 speech synthesis.
 
-Analyze objectively:
+STEP 1 — ANALYZE (use all provided inputs before writing anything):
+Study the full speech metadata JSON, original script, and context carefully. Analyze:
 - Speaking speed
 - Pauses
 - Clarity
 - Emphasis
 - Emotional tone
 - Fluency
-- Alignment with intended context
+- Alignment with the stated context, audience, and purpose
+
+Only after completing this analysis, produce the three outputs below.
 
 Then produce three outputs:
 
 1) ANNOTATED SCRIPT
-Rewrite the script with ElevenLabs v3 delivery tags at meaningful moments:
-   [short pause], [long pause], [whispers], [shouting], [dramatic tone],
-   [conversational tone], [quietly], [loudly], [curious], [mischievously]
-Only tag moments where it genuinely elevates delivery for this context. Do not over-tag.
+Your role is to enhance the script for ElevenLabs v3 TTS by integrating audio tags.
+Follow ALL of these directives strictly:
+
+DO:
+- Integrate audio tags to add expression, emotion, and realism — tags MUST describe something auditory.
+- Ensure every tag is contextually appropriate and genuinely enhances the emotion or subtext at that moment.
+- Strive for a diverse range of emotional expressions reflecting the nuances of the speech.
+- Place tags immediately before OR after the segment they modify (e.g. "[annoyed] This is hard." or "This is hard. [sighs]").
+- Add emphasis by capitalising key words, adding ellipses, or punctuation (! or ?) where it fits naturally.
+
+DO NOT:
+- Alter, add, or remove ANY words from the original script. Only add tags and emphasis punctuation.
+- Create tags from existing narrative descriptions in the text (e.g. if text says "he laughed", do NOT change to "[laughs] he laughed" — instead add "[chuckles]" after if appropriate).
+- Use non-auditory tags like [standing], [grinning], [pacing], [music].
+- Use sound effect tags (gunshot, explosion, applause) for speech coaching scripts — they are off-limits here.
+- Invent new dialogue lines.
+- Select tags that contradict the original meaning or intent.
+
+Available audio tags (non-exhaustive — you may infer similar auditory tags):
+  Emotional:   [happy], [sad], [excited], [angry], [annoyed], [appalled], [thoughtful],
+               [surprised], [sarcastic], [curious], [mischievously], [crying]
+  Vocal style: [whispers], [sings], [dramatic], [conversational tone]
+  Non-verbal:  [laughs], [laughs harder], [starts laughing], [wheezing], [chuckles],
+               [snorts], [sighs], [exhales], [exhales sharply], [inhales deeply],
+               [clears throat], [swallows], [gulps], [woo]
+  Pacing:      [short pause], [long pause]
+
+Examples:
+  Input:    "Are you serious? I can't believe you did that!"
+  Enhanced: "[appalled] Are you serious? [sighs] I can't believe you did that!"
+
+  Input:    "I guess you're right. It's just... difficult."
+  Enhanced: "I guess you're right. [sighs] It's just... [thoughtful] difficult."
 
 2) ACTIONABLE FEEDBACK LIST
 Rules for feedback only:
@@ -103,6 +136,8 @@ Rules for feedback only:
 - Do NOT mention pauses as an issue unless they genuinely hurt comprehension or delivery for this use case.
   Pauses are often natural — only raise them if there is a real, clear problem.
 - Every item must be tied to the stated context and purpose, not generic coaching rules.
+- IMPORTANT: Do NOT reference audio tags, bracket notation, or delivery markup in feedback (e.g. do NOT say "add a [happy] tag" or "use [excited]").
+  Instead, describe the delivery quality in plain conversational language (e.g. "could be delivered with more warmth and optimism" or "the closing would land better with an upbeat, excited tone").
 - Label each item by importance:
     [Critical] — must fix before next delivery, significantly impacts effectiveness
     [Suggested] — worthwhile improvement, moderate impact
@@ -111,7 +146,22 @@ Rules for feedback only:
 - Skip low-value observations. Quality over quantity. 3–7 items maximum.
 
 3) VOICE RECOMMENDATION
-Best matching ElevenLabs voice for this context, tone, and audience.
+Choose the single best-matching ElevenLabs voice from the list below.
+
+Match on ALL of the following criteria in priority order:
+  1. Use case alignment — match the voice's ideal use_cases to the speech context (e.g. public speech, pitch, academic, casual, motivational).
+  2. Energy level — match energy to the speech's required impact:
+       high energy  → motivational speeches, rallies, sales pitches, youth audiences, social media
+       medium energy → professional talks, TED-style, interviews, explainers, corporate
+       low energy   → narration, meditation, bedtime, soft storytelling
+  3. Tone and formality — formal/authoritative vs. warm/friendly vs. conversational.
+  4. Accent preference — only if the context strongly implies a regional preference.
+
+You MUST choose a voice from the following list only — do not invent voice IDs:
+
+{voices}
+
+In the rationale, briefly explain why the energy level and use case of this voice fits the speech context.
 
 Return strict JSON only.
 
@@ -321,10 +371,15 @@ Malformed JSON:
         metadata_json: dict[str, Any],
         context: str,
     ) -> dict[str, Any]:
+        voices_list = "\n".join(
+            f"  voice_id={v['voice_id']}  name={v['name']}  gender={v['gender']}  accent={v['accent']}  energy={v['energy']}  use_cases={v['use_cases']}  description={v['description']}"
+            for v in KNOWN_VOICES
+        )
         prompt = ANALYSIS_PROMPT.format(
             context=context,
             script=final_script,
             metadata=json.dumps(metadata_json, ensure_ascii=False, indent=2),
+            voices=voices_list,
         )
         result = self._call_json(prompt, max_output_tokens=8192).payload
 

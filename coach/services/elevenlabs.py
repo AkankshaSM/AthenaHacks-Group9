@@ -5,6 +5,31 @@ from typing import Any
 import requests
 
 
+# Stable premade ElevenLabs voice IDs — no voices_read permission needed.
+KNOWN_VOICES: list[dict[str, str]] = [
+    {"voice_id": "21m00Tcm4TlvDq8ikWAM", "name": "Rachel",   "gender": "female", "accent": "American",   "description": "calm, narrative",           "energy": "low",    "use_cases": "audiobooks, meditation, storytelling"},
+    {"voice_id": "29vD33N1CtxCmqQRPOHJ", "name": "Drew",     "gender": "male",   "accent": "American",   "description": "well-rounded, medium",       "energy": "medium", "use_cases": "general purpose, explainers, interviews"},
+    {"voice_id": "EXAVITQu4vr4xnSDxMaL", "name": "Sarah",    "gender": "female", "accent": "American",   "description": "soft, news",                 "energy": "low",    "use_cases": "news, e-learning, corporate"},
+    {"voice_id": "ErXwobaYiN019PkySvjV", "name": "Antoni",   "gender": "male",   "accent": "American",   "description": "well-rounded",               "energy": "medium", "use_cases": "general purpose, presentations"},
+    {"voice_id": "GBv7mTt0atIp3Br8iCZE", "name": "Thomas",   "gender": "male",   "accent": "American",   "description": "calm",                       "energy": "low",    "use_cases": "meditation, bedtime stories, soft narration"},
+    {"voice_id": "IKne3meq5aSn9XLyUdCD", "name": "Charlie",  "gender": "male",   "accent": "Australian", "description": "natural, conversational",    "energy": "medium", "use_cases": "casual talks, podcasts, social media"},
+    {"voice_id": "JBFqnCBsd6RMkjVDRZzb", "name": "George",   "gender": "male",   "accent": "British",    "description": "warm, authoritative",        "energy": "medium", "use_cases": "documentaries, corporate, professional speeches"},
+    {"voice_id": "LcfcDJNUP1GQjkzn1xUU", "name": "Emily",    "gender": "female", "accent": "American",   "description": "calm, composed",             "energy": "low",    "use_cases": "corporate, e-learning, professional"},
+    {"voice_id": "MF3mGyEYCl7XYWbV9V6O", "name": "Elli",     "gender": "female", "accent": "American",   "description": "emotional, upbeat",          "energy": "high",   "use_cases": "social media, motivational speeches, ads, youth audience"},
+    {"voice_id": "N2lVS1w4EtoT3dr4eOWO", "name": "Callum",   "gender": "male",   "accent": "American",   "description": "intense, characters",        "energy": "high",   "use_cases": "drama, characters, persuasive speeches, debates"},
+    {"voice_id": "TX3LPaxmHKxFdv7VOQHJ", "name": "Liam",     "gender": "male",   "accent": "American",   "description": "narration",                  "energy": "medium", "use_cases": "audiobooks, explainers, narration"},
+    {"voice_id": "ThT5KcBeYPX3keUQqHPh", "name": "Dorothy",  "gender": "female", "accent": "British",    "description": "pleasant, expressive",       "energy": "medium", "use_cases": "children content, storytelling, friendly presentations"},
+    {"voice_id": "TxGEqnHWrfWFTfGW9XjX", "name": "Josh",     "gender": "male",   "accent": "American",   "description": "deep, resonant",             "energy": "medium", "use_cases": "trailers, promos, public speaking, authority roles"},
+    {"voice_id": "VR6AewLTigWG4xSOukaG", "name": "Arnold",   "gender": "male",   "accent": "American",   "description": "crisp, narration",           "energy": "medium", "use_cases": "narration, documentaries, news"},
+    {"voice_id": "XrExE9yKIg1WjnnlVkGX", "name": "Matilda",  "gender": "female", "accent": "American",   "description": "warm, friendly",             "energy": "medium", "use_cases": "customer service, friendly explainers, lifestyle"},
+    {"voice_id": "onwK4e9ZLuTAKqWW03F9", "name": "Daniel",   "gender": "male",   "accent": "British",    "description": "authoritative, news",        "energy": "medium", "use_cases": "news, formal speeches, corporate, TED-style talks"},
+    {"voice_id": "pFZP5JQG7iQjIQuC4Bku", "name": "Lily",     "gender": "female", "accent": "British",    "description": "warm, expressive",           "energy": "medium", "use_cases": "storytelling, lifestyle, expressive narration"},
+    {"voice_id": "pNInz6obpgDQGcFmaJgB", "name": "Adam",     "gender": "male",   "accent": "American",   "description": "deep, narrative",            "energy": "low",    "use_cases": "audiobooks, deep narration, documentary"},
+    {"voice_id": "AZnzlk1XvdvUeBnXmlld", "name": "Domi",     "gender": "female", "accent": "American",   "description": "strong, confident",          "energy": "high",   "use_cases": "motivational speeches, public speaking, leadership talks"},
+    {"voice_id": "CYw3kZ02Hs0563khs1Fj", "name": "Dave",     "gender": "male",   "accent": "British",    "description": "conversational",             "energy": "medium", "use_cases": "podcasts, casual talks, interviews"},
+]
+
+
 class ElevenLabsServiceError(Exception):
     pass
 
@@ -202,11 +227,18 @@ class ElevenLabsClient:
         payload = {
             "text": text,
             "model_id": self.model_id,
-            "output_format": "mp3_44100_128",
+            # Low stability (Creative mode) makes eleven_v3 responsive to audio tags.
+            "voice_settings": {
+                "stability": 0.35,
+                "similarity_boost": 0.75,
+                "style": 0.45,
+                "use_speaker_boost": True,
+            },
         }
 
         response = requests.post(
             url,
+            params={"output_format": "mp3_44100_128"},
             headers={**self._headers(), "Content-Type": "application/json"},
             json=payload,
             timeout=120,

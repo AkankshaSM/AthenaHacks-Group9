@@ -385,14 +385,12 @@ def synthesize_audio_api(request: HttpRequest) -> JsonResponse:
                 voice_id = None
 
     elevenlabs_client = ElevenLabsClient()
-
-    try:
-        resolved_voice_id = elevenlabs_client.resolve_voice_id(
-            preferred_voice_id=voice_id,
-            preferred_name=voice_name,
-        )
-    except ElevenLabsServiceError as exc:
-        return JsonResponse({"error": str(exc)}, status=502)
+    # Reject stale/hallucinated voice IDs from old analyses — only allow known voices.
+    from coach.services.elevenlabs import KNOWN_VOICES
+    known_ids = {v["voice_id"] for v in KNOWN_VOICES}
+    if voice_id and voice_id not in known_ids:
+        voice_id = None
+    resolved_voice_id = voice_id or elevenlabs_client.default_voice_id
 
     try:
         audio_bytes = elevenlabs_client.synthesize(text=annotated_script, voice_id=resolved_voice_id)
