@@ -966,19 +966,21 @@
     }
 
     .issue-ts {
-      font-family: 'Helvetica Neue', Arial, sans-serif;
-      font-size: 0.88rem;
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 0.97rem;
       font-weight: 700;
       color: #1a8ab8;
-      min-width: 44px;
+      min-width: 80px;
       padding-top: 2px;
     }
 
     .issue-text {
-      font-family: 'Helvetica Neue', Arial, sans-serif;
-      font-size: 0.9rem;
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 0.97rem;
       color: #3a5a78;
-      line-height: 1.6;
+      line-height: 1.75;
     }
 
     /* Strengths */
@@ -1180,6 +1182,8 @@
       border: 1px solid rgba(130, 214, 245, 0.25);
       border-radius: 14px;
       padding: 20px 22px;
+      max-height: 260px;
+      overflow-y: auto;
     }
 
     .delivery-notes-text {
@@ -1188,6 +1192,13 @@
       font-size: 0.97rem;
       color: #0a3a5c;
       line-height: 1.8;
+      white-space: pre-wrap;
+    }
+
+    .annotation-tag {
+      font-style: italic;
+      font-weight: 700;
+      color: #82D6F5;
     }
 
     .delivery-notes-text .highlight-term {
@@ -1462,8 +1473,10 @@
       border-radius: 18px;
       padding: 24px 28px;
       backdrop-filter: blur(10px);
-      max-height: 200px;
+      min-height: 200px;
+      max-height: 340px;
       overflow-y: auto;
+      flex-shrink: 0;
       margin-bottom: 28px;
       position: relative;
     }
@@ -1485,6 +1498,86 @@
       color: #0a1f3a;
       line-height: 1.8;
       white-space: pre-wrap;
+    }
+
+    /* Playback card (Step 5) */
+    .playback-card {
+      width: 100%;
+      background: rgba(235, 246, 255, 0.55);
+      border: 1.5px solid rgba(130, 214, 245, 0.3);
+      border-radius: 18px;
+      padding: 18px 22px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-shrink: 0;
+    }
+    .playback-card.visible { display: flex; }
+    .playback-card-label {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #82D6F5;
+    }
+    .playback-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .playback-play-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #3aaed8;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: white;
+      transition: background 0.2s;
+    }
+    .playback-play-btn:hover { background: #1a8ab8; }
+
+    /* Blue audio scrubber (shared for Step 5 + Step 7) */
+    .audio-scrubber {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #3aaed8 0%, rgba(130,214,245,0.25) 0%);
+      outline: none;
+      cursor: pointer;
+    }
+    .audio-scrubber::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #3aaed8;
+      border: 2px solid white;
+      box-shadow: 0 0 4px rgba(58,174,216,0.5);
+      cursor: pointer;
+    }
+    .audio-scrubber::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #3aaed8;
+      border: 2px solid white;
+      cursor: pointer;
+    }
+    .audio-time {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.75rem;
+      color: #82afc8;
+      min-width: 72px;
+      text-align: right;
     }
 
     /* Ball record button */
@@ -2538,6 +2631,18 @@ Stop performing, and start speaking. The world doesn't need more words. It needs
         <p class="record-label" id="recordLabel">Tap to record</p>
       </div>
 
+      <!-- Playback card — shown after recording stops -->
+      <div class="playback-card" id="playbackCard">
+        <p class="playback-card-label">Your Recording</p>
+        <div class="playback-row">
+          <button class="playback-play-btn" id="playbackPlayBtn" title="Play recording">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+          </button>
+          <input type="range" class="audio-scrubber" id="playbackScrubber" value="0" min="0" step="0.01">
+          <span class="audio-time" id="playbackTime">0:00 / 0:00</span>
+        </div>
+      </div>
+
       <div class="continue-row" style="margin-top:0;">
         <button class="continue-btn" id="recordNextBtn">Go to Analysis <span class="continue-arrow">→</span></button>
       </div>
@@ -2626,6 +2731,12 @@ Stop performing, and start speaking. The world doesn't need more words. It needs
         </button>
       </div>
 
+      <!-- Audio scrubber for model audio -->
+      <div style="display:flex; align-items:center; gap:12px; width:100%; padding: 0 4px; margin-bottom:16px;">
+        <input type="range" class="audio-scrubber" id="modelScrubber" value="0" min="0" step="0.01">
+        <span class="audio-time" id="modelTime">0:00 / 0:00</span>
+      </div>
+
       <div class="delivery-notes-card">
         <p class="delivery-notes-heading">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a8ab8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2634,8 +2745,8 @@ Stop performing, and start speaking. The world doesn't need more words. It needs
           Delivery Notes
         </p>
         <div class="delivery-notes-quote">
-          <p class="delivery-notes-text">
-            "Added a <span class="highlight-term">500ms pause</span> after the opening hook to let the gravity of the statement land with the audience. Elevated the <span class="highlight-term">pitch curve</span> on the word 'renaissance' to signal creative optimism."
+          <p class="delivery-notes-text" id="deliveryNotesText">
+            Here's how your script was annotated — complete the flow to see the result.
           </p>
         </div>
       </div>
@@ -3293,6 +3404,47 @@ Stop performing, and start speaking. The world doesn't need more words. It needs
             stream.getTracks().forEach(t => t.stop());
             appRecordingBlob = new Blob(ballChunks, { type: 'audio/webm' });
             document.getElementById('recordNextBtn').disabled = false;
+
+            // Show playback card
+            const playbackUrl = URL.createObjectURL(appRecordingBlob);
+            const playbackAudio = new Audio(playbackUrl);
+            const card = document.getElementById('playbackCard');
+            const playBtn = document.getElementById('playbackPlayBtn');
+            const scrubber = document.getElementById('playbackScrubber');
+            const timeEl = document.getElementById('playbackTime');
+            card.classList.add('visible');
+            let pbPlaying = false;
+
+            function fmtTime(s) {
+              const m = Math.floor(s / 60);
+              return m + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+            }
+
+            playbackAudio.onloadedmetadata = () => {
+              scrubber.max = playbackAudio.duration;
+              timeEl.textContent = '0:00 / ' + fmtTime(playbackAudio.duration);
+            };
+            playbackAudio.ontimeupdate = () => {
+              scrubber.value = playbackAudio.currentTime;
+              const pct = (playbackAudio.currentTime / playbackAudio.duration) * 100 || 0;
+              scrubber.style.background = `linear-gradient(to right, #3aaed8 ${pct}%, rgba(130,214,245,0.25) ${pct}%)`;
+              timeEl.textContent = fmtTime(playbackAudio.currentTime) + ' / ' + fmtTime(playbackAudio.duration);
+            };
+            playbackAudio.onended = () => {
+              pbPlaying = false;
+              playBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>';
+            };
+            scrubber.addEventListener('input', () => { playbackAudio.currentTime = scrubber.value; });
+            playBtn.onclick = () => {
+              pbPlaying = !pbPlaying;
+              if (pbPlaying) {
+                playbackAudio.play();
+                playBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+              } else {
+                playbackAudio.pause();
+                playBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>';
+              }
+            };
           };
           ballMediaRecorder.start();
           isRecording = true;
@@ -3384,8 +3536,28 @@ Stop performing, and start speaking. The world doesn't need more words. It needs
           if (data.error) throw new Error(data.error);
 
           appAudioUrl = data.audio_url;
-          // Wire up the play button to an Audio element
+          // Wire up the play button + scrubber to an Audio element
           const audioEl = new Audio(appAudioUrl);
+          const scrubber = document.getElementById('modelScrubber');
+          const timeEl  = document.getElementById('modelTime');
+
+          function fmtM(s) {
+            const m = Math.floor(s / 60);
+            return m + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+          }
+
+          audioEl.onloadedmetadata = () => {
+            scrubber.max = audioEl.duration;
+            timeEl.textContent = '0:00 / ' + fmtM(audioEl.duration);
+          };
+          audioEl.ontimeupdate = () => {
+            scrubber.value = audioEl.currentTime;
+            const pct = (audioEl.currentTime / audioEl.duration) * 100 || 0;
+            scrubber.style.background = `linear-gradient(to right, #3aaed8 ${pct}%, rgba(130,214,245,0.25) ${pct}%)`;
+            timeEl.textContent = fmtM(audioEl.currentTime) + ' / ' + fmtM(audioEl.duration);
+          };
+          scrubber.addEventListener('input', () => { audioEl.currentTime = scrubber.value; });
+
           let modelPlaying = false;
           const playBtn = document.getElementById('modelPlayBtn');
           playBtn.onclick = () => {
@@ -3403,10 +3575,14 @@ Stop performing, and start speaking. The world doesn't need more words. It needs
             };
           };
 
-          // Show voice info and delivery notes
-          if (appAnalysisResult.voice_recommendation?.rationale) {
-            document.querySelector('.delivery-notes-text').textContent =
-              appAnalysisResult.voice_recommendation.rationale;
+          // Show annotated script in delivery notes
+          if (appAnalysisResult.annotated_script) {
+            const escaped = appAnalysisResult.annotated_script
+              .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const tagged = escaped.replace(/\[([^\]]+)\]/g,
+              '<span class="annotation-tag">[$1]</span>');
+            document.getElementById('deliveryNotesText').innerHTML =
+              "Here\u2019s how your script was annotated:\n\n" + tagged;
           }
           document.querySelector('.mode-name').textContent =
             appAnalysisResult.voice_recommendation?.voice_name || 'Model Audio';
