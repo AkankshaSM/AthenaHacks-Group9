@@ -39,8 +39,9 @@ def _final_or_latest_script(session: Session) -> ScriptVersion | None:
 
 
 @require_GET
+@ensure_csrf_cookie
 def home(request: HttpRequest) -> HttpResponse:
-    return render(request, "coach/home.html", {"form": HomeInputForm()})
+    return render(request, "coach/landing.html")
 
 
 @require_POST
@@ -214,6 +215,26 @@ def analysis_page(request: HttpRequest) -> HttpResponse:
             "feedback_list": feedback_list,
         },
     )
+
+
+@require_POST
+def create_session_api(request: HttpRequest) -> JsonResponse:
+    """Create (or reset) a Django-session-backed coaching Session from a JSON body."""
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    context = str(payload.get("context", "")).strip()
+    script = str(payload.get("script", "")).strip()
+    if not context or not script:
+        return JsonResponse({"error": "Both context and script are required"}, status=400)
+
+    session = Session.objects.create(context=context)
+    ScriptVersion.objects.create(session=session, content=script, version_number=1, is_final=False)
+    request.session[SESSION_KEY] = session.id
+
+    return JsonResponse({"session_id": session.id})
 
 
 @require_POST
