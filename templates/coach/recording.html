@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="card">
+    <h2>Phase 2: Speech Recording & Analysis</h2>
+    <p>Record your delivery, upload audio, then run analysis against the final script and full ElevenLabs metadata.</p>
+
+    <h3>Final Script</h3>
+    <pre class="script-preview">{{ script }}</pre>
+
+    <div class="button-row">
+        <button id="start_record">Start Recording</button>
+        <button id="stop_record" disabled>Stop Recording</button>
+        <button id="upload_audio" disabled>Upload Audio</button>
+        <button id="analyze_speech" disabled>Analyze Speech</button>
+    </div>
+
+    <p id="recording_status"></p>
+
+    <audio id="local_player" controls></audio>
+
+    <h3>ElevenLabs Metadata JSON</h3>
+    <textarea id="metadata_view" rows="14" readonly></textarea>
+</section>
+
+{{ script|json_script:"final-script-data" }}
+{{ context|json_script:"context-data" }}
+
+<script>
+function getCsrfToken() {
+    const name = "csrftoken=";
+    const cookies = document.cookie.split(";");
+    for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name)) {
+            return cookie.substring(name.length);
+        }
+    }
+    return "";
+}
+
+const startBtn = document.getElementById("start_record");
+const stopBtn = document.getElementById("stop_record");
+const uploadBtn = document.getElementById("upload_audio");
+const analyzeBtn = document.getElementById("analyze_speech");
+const status = document.getElementById("recording_status");
+const localPlayer = document.getElementById("local_player");
+const metadataView = document.getElementById("metadata_view");
+
+let mediaRecorder;
+let chunks = [];
+let recordedBlob = null;
+let metadataJson = null;
+
+async function parseApiResponse(response) {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+        return await response.json();
+    }
+    const text = await response.text();
+    throw new Error(`Server returned non-JSON response (${response.status}): ${text.slice(0, 180)}`);
+}
+
+startBtn.addEventListener("click", async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        chunks = [];
+        mediaRecorder.ondataavailable = (event) => chunks.push(event.data);
+        mediaRecorder.onstop = () => {
+            recordedBlob = new Blob(chunks, { type: "audio/webm" });
+            localPlayer.src = URL.createObjectURL(recordedBlob);
+            uploadBtn.disabled = false;
+            status.textContent = "Recording complete. Upload to analyze.";
+        };
+        mediaRecorder.start();
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        status.textContent = "Recording...";
+    } catch (error) {
+        status.textContent = `Microphone error: ${error.message}`;
+    }
+});
+
+stopBtn.addEventListener("click", () => {
+    mediaRecorder.stop();
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+});
+
+uploadBtn.addEventListener("click", async () => {
+    if (!recordedBlob) {
+        status.textContent = "No recording available.";
+        return;
+    }
+
+    status.textContent = "Uploading and requesting ElevenLabs metadata...";
+    const formData = new FormData();
+    formData.append("audio", recordedBlob, "recording.webm");
+
+    try {
+        const response = await fetch("{% url 'upload_audio_api' %}", {
+            method: "POST",
+            headers: { "X-CSRFToken": getCsrfToken() },
+            body: formData,
+        });
+        const data = await parseApiResponse(response);
+        if (!response.ok) {
+            throw new Error(data.error || "Upload failed");
+        }
+        metadataJson = data.metadata_json;
+        metadataView.value = JSON.stringify(metadataJson, null, 2);
+        analyzeBtn.disabled = false;
+        status.textContent = "Upload complete. Run analysis.";
+    } catch (error) {
+        status.textContent = `Upload error: ${error.message}`;
+    }
+});
+
+analyzeBtn.addEventListener("click", async () => {
+    if (!metadataJson) {
+        status.textContent = "Metadata is required before analysis.";
+        return;
+    }
+
+    status.textContent = "Analyzing speech with Gemini...";
+    try {
+        const response = await fetch("{% url 'analyze_speech_api' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCsrfToken(),
+            },
+            body: JSON.stringify({
+                script: JSON.parse(document.getElementById("final-script-data").textContent),
+                context: JSON.parse(document.getElementById("context-data").textContent),
+                metadata_json: metadataJson,
+            }),
+        });
+        const data = await parseApiResponse(response);
+        if (!response.ok) {
+            throw new Error(data.error || "Analysis failed");
+        }
+        status.textContent = "Analysis complete. Redirecting...";
+        window.location.href = "{% url 'analysis_page' %}";
+    } catch (error) {
+        status.textContent = `Analysis error: ${error.message}`;
+    }
+});
+</script>
+{% endblock %}

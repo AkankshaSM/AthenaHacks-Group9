@@ -1,0 +1,32 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Speech Coach</title>
+    <link rel="stylesheet" href="{% static 'coach/style.css' %}" />
+</head>
+<body>
+    <header class="topbar">
+        <h1>AI Speech Coach</h1>
+        <nav>
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'editor_page' %}">Editor</a>
+            <a href="{% url 'recording_page' %}">Recording</a>
+            <a href="{% url 'analysis_page' %}">Analysis</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% if messages %}
+            <section class="messages">
+                {% for message in messages %}
+                    <div class="message {{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </section>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

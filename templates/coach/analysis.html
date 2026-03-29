@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="card">
+    <h2>Speech Analysis Results</h2>
+
+    {% if analysis %}
+        <h3>Annotated Script</h3>
+        <pre class="script-preview" id="annotated_script">{{ analysis.annotated_script }}</pre>
+
+        <h3>Coaching Feedback</h3>
+        {% if feedback_summary %}
+            <p class="feedback-summary">{{ feedback_summary }}</p>
+        {% endif %}
+        {% if feedback_sections %}
+            <div class="feedback-grid">
+                {% for section in feedback_sections %}
+                    <div class="feedback-card">
+                        <h4 class="feedback-category">{{ section.category }}</h4>
+                        <ul class="feedback-items">
+                            {% for item in section.items %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="mic-status">No feedback available yet.</p>
+        {% endif %}
+
+        <h3>Voice Recommendation</h3>
+        <p><strong>Name:</strong> {{ voice_data.name|default:"General Purpose" }}</p>
+        <p><strong>Reason:</strong> {{ voice_data.reason|default:"Context and tone fit." }}</p>
+
+        <div class="button-row">
+            <button id="synthesize_btn">Generate Improved Audio</button>
+            <span id="synthesize_status"></span>
+        </div>
+
+        <h3>Original Recording</h3>
+        {% if recording and recording.audio_file %}
+            <audio controls src="{{ recording.audio_file.url }}"></audio>
+        {% else %}
+            <p>No original recording found.</p>
+        {% endif %}
+
+        <h3>Improved Audio</h3>
+        <audio id="improved_audio" controls></audio>
+
+    {% else %}
+        <p>No analysis yet. Please complete recording and analysis first.</p>
+        <a class="button-like" href="{% url 'recording_page' %}">Go to Recording</a>
+    {% endif %}
+</section>
+
+{% if analysis %}
+{{ analysis.annotated_script|json_script:"annotated-script-data" }}
+{{ voice_data.voice_id|default:""|json_script:"voice-id-data" }}
+<script>
+function getCsrfToken() {
+    const name = "csrftoken=";
+    const cookies = document.cookie.split(";");
+    for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name)) {
+            return cookie.substring(name.length);
+        }
+    }
+    return "";
+}
+
+const synthesizeBtn = document.getElementById("synthesize_btn");
+const synthesizeStatus = document.getElementById("synthesize_status");
+const improvedAudio = document.getElementById("improved_audio");
+
+synthesizeBtn.addEventListener("click", async () => {
+    synthesizeStatus.textContent = "Generating audio...";
+    synthesizeBtn.disabled = true;
+    try {
+        const response = await fetch("{% url 'synthesize_audio_api' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCsrfToken(),
+            },
+            body: JSON.stringify({
+                annotated_script: JSON.parse(document.getElementById("annotated-script-data").textContent),
+                voice_id: JSON.parse(document.getElementById("voice-id-data").textContent),
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Synthesis failed");
+        }
+        improvedAudio.src = data.audio_url;
+        synthesizeStatus.textContent = "Improved audio generated.";
+    } catch (error) {
+        synthesizeStatus.textContent = `Error: ${error.message}`;
+    } finally {
+        synthesizeBtn.disabled = false;
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

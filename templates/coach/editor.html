@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="grid two-col">
+    <aside class="card sidebar">
+        <h3>Version History</h3>
+        <p>All script iterations are preserved.</p>
+        <ul class="version-list">
+            {% for version in versions %}
+                <li>
+                    <button
+                        type="button"
+                        class="link-button load-version"
+                        data-content="{{ version.content|escape }}"
+                    >
+                        v{{ version.version_number }} {% if version.is_final %}(final){% endif %}
+                    </button>
+                </li>
+            {% empty %}
+                <li>No versions found.</li>
+            {% endfor %}
+        </ul>
+    </aside>
+
+    <div class="card">
+        <h2>Iterative Refinement Editor</h2>
+        <p>Use AI refine repeatedly, edit manually, then save each new version.</p>
+
+        <label for="instructions">Optional refinement instructions</label>
+        <textarea id="instructions" rows="3" placeholder="Example: Make it more concise and motivational."></textarea>
+
+        <label for="script_editor">Current Script</label>
+        <textarea id="script_editor" rows="16">{{ latest_script }}</textarea>
+
+        <div class="button-row">
+            <button id="refine_btn" type="button">Refine</button>
+            <span id="refine_status"></span>
+        </div>
+
+        <form method="post" action="{% url 'save_version' %}">
+            {% csrf_token %}
+            <input type="hidden" name="content" id="save_content" />
+            <label class="inline" for="mark_final">
+                <input type="checkbox" id="mark_final" name="mark_final" /> Mark as final script
+            </label>
+            <div class="button-row">
+                <button type="submit" id="save_btn">Save New Version</button>
+                <a class="button-like" href="{% url 'recording_page' %}">Continue to Recording</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+{{ answers_json|json_script:"answers-data" }}
+{{ previous_versions_json|json_script:"versions-data" }}
+{{ session_obj.context|json_script:"context-data" }}
+
+<script>
+function getCsrfToken() {
+    const name = "csrftoken=";
+    const cookies = document.cookie.split(";");
+    for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name)) {
+            return cookie.substring(name.length);
+        }
+    }
+    return "";
+}
+
+const scriptEditor = document.getElementById("script_editor");
+const saveContent = document.getElementById("save_content");
+const saveBtn = document.getElementById("save_btn");
+const refineBtn = document.getElementById("refine_btn");
+const refineStatus = document.getElementById("refine_status");
+const instructionsField = document.getElementById("instructions");
+
+saveBtn.addEventListener("click", () => {
+    saveContent.value = scriptEditor.value;
+});
+
+for (const button of document.querySelectorAll(".load-version")) {
+    button.addEventListener("click", () => {
+        scriptEditor.value = button.dataset.content;
+    });
+}
+
+refineBtn.addEventListener("click", async () => {
+    refineStatus.textContent = "Refining...";
+    refineBtn.disabled = true;
+    try {
+        const response = await fetch("{% url 'refine_script_api' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCsrfToken(),
+            },
+            body: JSON.stringify({
+                context: JSON.parse(document.getElementById("context-data").textContent),
+                script: scriptEditor.value,
+                answers: JSON.parse(document.getElementById("answers-data").textContent),
+                previous_versions: JSON.parse(document.getElementById("versions-data").textContent),
+                instructions: instructionsField.value,
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Refinement failed");
+        }
+        scriptEditor.value = data.refined_script;
+        refineStatus.textContent = "Refinement complete. Review and save a new version.";
+    } catch (error) {
+        refineStatus.textContent = `Error: ${error.message}`;
+    } finally {
+        refineBtn.disabled = false;
+    }
+});
+</script>
+{% endblock %}

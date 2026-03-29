@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="card">
+    <h2>Phase 1: Content Refinement</h2>
+    <p>Provide your speaking context and initial script. Type or use the mic button to dictate via Gemini speech-to-text.</p>
+
+    <form method="post" action="{% url 'start_session' %}">
+        {% csrf_token %}
+
+        <div class="field-row">
+            <label for="id_context">Context</label>
+            <button type="button" class="mic-btn" data-target="id_context" title="Dictate context">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                <span class="mic-label">Dictate</span>
+            </button>
+        </div>
+        {{ form.context }}
+        <p class="mic-status" id="status_id_context"></p>
+
+        <div class="field-row">
+            <label for="id_script">Initial Script</label>
+            <button type="button" class="mic-btn" data-target="id_script" title="Dictate script">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                <span class="mic-label">Dictate</span>
+            </button>
+        </div>
+        {{ form.script }}
+        <p class="mic-status" id="status_id_script"></p>
+
+        <button type="submit">Generate Questions</button>
+    </form>
+</section>
+
+<script>
+function getCsrfToken() {
+    const name = "csrftoken=";
+    for (let cookie of document.cookie.split(";")) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name)) return cookie.substring(name.length);
+    }
+    return "";
+}
+
+let activeRecorder = null;
+
+document.querySelectorAll(".mic-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+        const targetId = btn.dataset.target;
+        const targetField = document.getElementById(targetId);
+        const statusEl = document.getElementById("status_" + targetId);
+        const label = btn.querySelector(".mic-label");
+
+        // Stop any in-progress recording
+        if (activeRecorder && activeRecorder.state === "recording") {
+            activeRecorder.stop();
+            return;
+        }
+
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+            statusEl.textContent = "Microphone access denied: " + e.message;
+            return;
+        }
+
+        const recorder = new MediaRecorder(stream);
+        activeRecorder = recorder;
+        const chunks = [];
+
+        recorder.ondataavailable = e => chunks.push(e.data);
+
+        recorder.onstop = async () => {
+            stream.getTracks().forEach(t => t.stop());
+            btn.classList.remove("mic-recording");
+            label.textContent = "Dictate";
+            statusEl.textContent = "Transcribing...";
+
+            const blob = new Blob(chunks, { type: "audio/webm" });
+            const formData = new FormData();
+            formData.append("audio", blob, "dictation.webm");
+
+            try {
+                const res = await fetch("{% url 'transcribe_audio_api' %}", {
+                    method: "POST",
+                    headers: { "X-CSRFToken": getCsrfToken() },
+                    body: formData,
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Transcription failed");
+
+                // Append to existing text so partial dictations accumulate
+                const existing = targetField.value.trim();
+                targetField.value = existing ? existing + "\n" + data.transcript : data.transcript;
+                statusEl.textContent = "Transcription complete.";
+            } catch (err) {
+                statusEl.textContent = "Error: " + err.message;
+            }
+            activeRecorder = null;
+        };
+
+        recorder.start();
+        btn.classList.add("mic-recording");
+        label.textContent = "Stop";
+        statusEl.textContent = "Recording... click Stop when done.";
+    });
+});
+</script>
+{% endblock %}

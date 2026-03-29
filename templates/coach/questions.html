@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="card">
+    <h2>Clarifying Questions</h2>
+    <p>Answer these to improve refinement quality. Max generated questions: 7.</p>
+
+    <form method="post" action="{% url 'submit_answers' %}">
+        {% csrf_token %}
+        {% for q in questions %}
+            <div class="question-block">
+                <label for="question_{{ q.id }}">{{ forloop.counter }}. {{ q.question_text }}</label>
+                <textarea id="question_{{ q.id }}" name="question_{{ q.id }}" rows="3">{{ q.answer_text }}</textarea>
+            </div>
+        {% endfor %}
+
+        <button type="submit">Save Answers & Continue</button>
+    </form>
+</section>
+{% endblock %}
