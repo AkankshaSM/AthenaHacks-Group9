@@ -57,6 +57,7 @@
 {% if analysis %}
 {{ analysis.annotated_script|json_script:"annotated-script-data" }}
 {{ voice_data.voice_id|default:""|json_script:"voice-id-data" }}
+{{ voice_data.name|default:""|json_script:"voice-name-data" }}
 <script>
 function getCsrfToken() {
     const name = "csrftoken=";
@@ -87,6 +88,7 @@ synthesizeBtn.addEventListener("click", async () => {
             body: JSON.stringify({
                 annotated_script: JSON.parse(document.getElementById("annotated-script-data").textContent),
                 voice_id: JSON.parse(document.getElementById("voice-id-data").textContent),
+                voice_name: JSON.parse(document.getElementById("voice-name-data").textContent),
             }),
         });
         const data = await response.json();

@@ -22,6 +22,55 @@ class ElevenLabsClient:
             raise ElevenLabsServiceError("Missing ELEVENLABS_API_KEY environment variable")
         return {"xi-api-key": self.api_key}
 
+    def list_voices(self) -> list[dict[str, Any]]:
+        response = requests.get(
+            "https://api.elevenlabs.io/v1/voices",
+            headers=self._headers(),
+            timeout=60,
+        )
+        if response.status_code >= 400:
+            raise ElevenLabsServiceError(f"ElevenLabs voices error {response.status_code}: {response.text[:600]}")
+
+        try:
+            payload = response.json()
+        except json.JSONDecodeError as exc:
+            raise ElevenLabsServiceError("ElevenLabs voices response is not valid JSON") from exc
+
+        voices = payload.get("voices", [])
+        return voices if isinstance(voices, list) else []
+
+    def resolve_voice_id(self, *, preferred_voice_id: str | None, preferred_name: str | None) -> str:
+        voices = self.list_voices()
+        if not voices:
+            return self.default_voice_id
+
+        # 1) Keep preferred voice_id only if it exists for this account.
+        if preferred_voice_id:
+            for voice in voices:
+                if str(voice.get("voice_id", "")).strip() == preferred_voice_id:
+                    return preferred_voice_id
+
+        preferred_name_norm = (preferred_name or "").strip().lower()
+        if preferred_name_norm:
+            # 2) Exact name match.
+            for voice in voices:
+                if str(voice.get("name", "")).strip().lower() == preferred_name_norm:
+                    return str(voice.get("voice_id", "")).strip() or self.default_voice_id
+
+            # 3) Partial name match.
+            for voice in voices:
+                name = str(voice.get("name", "")).strip().lower()
+                if preferred_name_norm in name or name in preferred_name_norm:
+                    return str(voice.get("voice_id", "")).strip() or self.default_voice_id
+
+        # 4) Prefer configured default if present.
+        for voice in voices:
+            if str(voice.get("voice_id", "")).strip() == self.default_voice_id:
+                return self.default_voice_id
+
+        # 5) Last resort first available voice.
+        return str(voices[0].get("voice_id", "")).strip() or self.default_voice_id
+
     def _derive_metadata_from_stt(self, stt_json: dict[str, Any]) -> dict[str, Any]:
         words = stt_json.get("words", [])
         if not isinstance(words, list):
@@ -181,5 +230,26 @@ class ElevenLabsClient:
             timeout=120,
         )
         if response.status_code >= 400:
-            raise ElevenLabsServiceError(f"ElevenLabs synthesis error {response.status_code}: {response.text[:600]}")
+            # Some Gemini recommendations may reference voices that are not available for this account.
+            # Retry once with the configured default voice to keep the flow resilient.
+            response_text = (response.text or "")[:600]
+            if (
+                response.status_code == 404
+                and "voice_not_found" in response_text
+                and selected_voice_id != self.default_voice_id
+            ):
+                fallback_url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.default_voice_id}"
+                fallback_response = requests.post(
+                    fallback_url,
+                    headers={**self._headers(), "Content-Type": "application/json"},
+                    json=payload,
+                    timeout=120,
+                )
+                if fallback_response.status_code >= 400:
+                    raise ElevenLabsServiceError(
+                        f"ElevenLabs synthesis error {fallback_response.status_code}: {fallback_response.text[:600]}"
+                    )
+                return fallback_response.content
+
+            raise ElevenLabsServiceError(f"ElevenLabs synthesis error {response.status_code}: {response_text}")
         return response.content

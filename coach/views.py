@@ -379,6 +379,7 @@ def synthesize_audio_api(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": "annotated_script is required"}, status=400)
 
     voice_id = str(payload.get("voice_id", "")).strip() or None
+    voice_name = str(payload.get("voice_name", "")).strip() or None
 
     if not voice_id:
         latest_analysis = session.analyses.order_by("-created_at").first()
@@ -386,11 +387,22 @@ def synthesize_audio_api(request: HttpRequest) -> JsonResponse:
             try:
                 voice_data = json.loads(latest_analysis.voice_recommendation)
                 voice_id = str(voice_data.get("voice_id", "")).strip() or None
+                voice_name = str(voice_data.get("name", "")).strip() or voice_name
             except json.JSONDecodeError:
                 voice_id = None
 
+    elevenlabs_client = ElevenLabsClient()
+
     try:
-        audio_bytes = ElevenLabsClient().synthesize(text=annotated_script, voice_id=voice_id)
+        resolved_voice_id = elevenlabs_client.resolve_voice_id(
+            preferred_voice_id=voice_id,
+            preferred_name=voice_name,
+        )
+    except ElevenLabsServiceError as exc:
+        return JsonResponse({"error": str(exc)}, status=502)
+
+    try:
+        audio_bytes = elevenlabs_client.synthesize(text=annotated_script, voice_id=resolved_voice_id)
     except ElevenLabsServiceError as exc:
         return JsonResponse({"error": str(exc)}, status=502)
 
@@ -399,4 +411,4 @@ def synthesize_audio_api(request: HttpRequest) -> JsonResponse:
     recording.audio_file.save(filename, ContentFile(audio_bytes), save=False)
     recording.save()
 
-    return JsonResponse({"audio_url": recording.audio_file.url})
+    return JsonResponse({"audio_url": recording.audio_file.url, "voice_id": resolved_voice_id})
